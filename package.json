@@ -22,6 +22,7 @@
     "gulp-util": "~2.2.9",
     "immutable": "^2.0.17",
     "keydrown": "^1.1.0",
+    "randomcolor": "^0.1.1",
     "react": "^0.11.0",
     "react-art": "^0.11.0",
     "reactify": "~0.10.0",

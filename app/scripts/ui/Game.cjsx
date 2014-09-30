@@ -1,8 +1,10 @@
 window._ = require 'underscore'
 immut = require 'immutable'
 kd = require 'keydrown'
+randomColor = require 'randomcolor'
 
 PIECES = immut.fromJS(require './pieces.coffee')
+PIECE_COLORS = randomColor count: 7, luminosity: 'bright'
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
@@ -37,7 +39,11 @@ testBoard = ->
         null
   immut.fromJS board
 
-makePiece = (data) ->
+makePiece = (data={}) ->
+  data.rotationIndex ?= 0
+  data.type ?= _.random 0, PIECES.length-1
+  data.blocks ?= PIECES.get(data.type).get(data.rotationIndex)
+  data.color ?= PIECE_COLORS[data.type] ? 'black'
   immut.fromJS data
 
 updatePiece = (prevPiece, deltas) ->
@@ -47,7 +53,7 @@ updatePiece = (prevPiece, deltas) ->
       newRotationIndex = 0 if newRotationIndex > 3
       newRotationIndex = 3 if newRotationIndex < 0
       piece.set 'rotationIndex', newRotationIndex
-      piece.set 'blocks', PIECES.get(0).get(newRotationIndex)
+      piece.set 'blocks', PIECES.get(piece.get('type')).get(newRotationIndex)
     piece.set 'x', piece.get('x') + (deltas.x ? 0)
     piece.set 'y', piece.get('y') + (deltas.y ? 0)
 
@@ -77,7 +83,7 @@ removeCompletedRows = ({board}) ->
   result.toVector()
 
 boardWithPiece = ({piece, board}) ->
-  blockColor = 'green'
+  blockColor = piece.get('color')
   pieceX = piece.get('x')
   pieceY = piece.get('y')
   visible = getPieceVisibleBox piece
@@ -97,7 +103,7 @@ boardWithPiece = ({piece, board}) ->
     row.forEach (cell, xOffset) ->
       return if collision
       [x, y] = [xOffset + pieceX, yOffset + pieceY]
-      return if x >= BOARD_HEIGHT or y >= BOARD_HEIGHT
+      return if x < 0 or x >= BOARD_WIDTH or y >= BOARD_HEIGHT
       newBoardCell = if cell then {color: blockColor} else null
       newBoard = newBoard.withMutations (b) ->
         newBoardRow = b.get(y).withMutations (prevBoardRow) ->
@@ -154,7 +160,7 @@ Game = React.createClass
     board: baseBoard
 
   addPiece: ->
-    piece = makePiece(blocks: PIECES.get(0).get(0), x: 0, y: 0, rotationIndex: 0)
+    piece = makePiece x: 0, y: 0
     @setState
       baseBoard: @state.board
       board: makeBoard piece: piece, board: @state.board
