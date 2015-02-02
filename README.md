@@ -2,7 +2,7 @@
 
 A mostly working experimental implementation of Tetris using
 [React](http://facebook.github.io/react/) and
-[Immutable.js](https://github.com/facebook/immutable-js).
+[Immutable.js](http://facebook.github.io/immutable-js/).
 
 ## TODO
 
