@@ -3,11 +3,12 @@ immut = require 'immutable'
 kd = require 'keydrown'
 randomColor = require 'randomcolor'
 
-PIECES = immut.fromJS(require './pieces.coffee')
-PIECE_COLORS = randomColor count: 7, luminosity: 'bright'
+Board = require './board.cjsx'
 
-BOARD_WIDTH = 10
-BOARD_HEIGHT = 20
+PIECES = immut.fromJS require('./pieces.coffee')
+PIECE_COLORS = randomColor count: 7, luminosity: 'bright'
+BOARD_WIDTH = 10 # blocks
+BOARD_HEIGHT = 20 # blocks
 BLOCK_SIZE = 10
 CELL_SPACING = 1
 
@@ -28,15 +29,6 @@ emptyRow = ->
 emptyBoard = ->
   board = for y in [1..BOARD_HEIGHT]
     emptyRow()
-  immut.fromJS board
-
-testBoard = ->
-  board = for y in [1..BOARD_HEIGHT]
-    for x in [1..BOARD_WIDTH]
-      if y > 10
-        {color: 'red'}
-      else
-        null
   immut.fromJS board
 
 makePiece = (data={}) ->
@@ -73,6 +65,7 @@ getPieceVisibleBox = (piece) ->
       maxY = Math.max.apply @, _.compact([cellY, maxY])
   {x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1}
 
+# Returns copy of the given board with completed rows removed
 removeCompletedRows = ({board}) ->
   result = board.filter (row) ->
     !row.every (cell) -> cell?
@@ -82,17 +75,21 @@ removeCompletedRows = ({board}) ->
     result = immut.fromJS(newEmptyRows).concat result
   result.toVector()
 
+isPieceInBounds = ({piece, board}) ->
+  visible = getPieceVisibleBox piece
+  outOfBounds = (visible.y + visible.height) > BOARD_HEIGHT or
+    (visible.x + visible.width) > BOARD_WIDTH or
+    visible.x < 0
+  !outOfBounds
+
+
+# Returns a copy of the given board with the piece rendered into it
 boardWithPiece = ({piece, board}) ->
   blockColor = piece.get('color')
   pieceX = piece.get('x')
   pieceY = piece.get('y')
-  visible = getPieceVisibleBox piece
-  console.debug "Visible:", visible
 
-  outOfBounds = (visible.y + visible.height) > BOARD_HEIGHT or
-    (visible.x + visible.width) > BOARD_WIDTH or
-    visible.x < 0
-  return false if outOfBounds
+  return false unless isPieceInBounds({piece, board})
 
   collision = false
 
@@ -109,7 +106,6 @@ boardWithPiece = ({piece, board}) ->
         newBoardRow = b.get(y).withMutations (prevBoardRow) ->
           if prevBoardRow.get(x)
             if newBoardCell?
-              console.debug "COLLISION: Existing:", prevBoardRow.get(x), "New:", newBoardCell
               collision = true
           else
             prevBoardRow.set x, newBoardCell
@@ -119,52 +115,33 @@ boardWithPiece = ({piece, board}) ->
 
   newBoard
 
-
 # Returns a new board with the piece rendered in the given position.
-# If new piece position is invalid, returns null.
+# Removes any completed rows. If new piece position is invalid, returns false.
 makeBoard = ({piece, board}) ->
   board ?= emptyBoard()
-  console.debug "Making new board with this as the initial board:"
-  logBoard board
   board = removeCompletedRows board: board
   board = boardWithPiece board: board, piece: piece
-  console.info "Made board:"
-  logBoard board
   immut.fromJS board
-
-Board = React.createClass
-  render: ->
-    blocks = []
-    y = 0
-    console.log "Rendering board"
-    logBoard @props.cells
-    @props.cells.forEach (row, rowIdx) ->
-      x = 0
-      row.forEach (cell, colIdx) ->
-        blockColor = cell?.color ? '#eee'
-        blocks.push <rect
-            x={x}
-            y={y}
-            width={BLOCK_SIZE}
-            height={BLOCK_SIZE}
-            fill={blockColor}
-          />
-        x += BLOCK_SIZE + CELL_SPACING
-      y += BLOCK_SIZE + CELL_SPACING
-    <g>{blocks}</g>
 
 Game = React.createClass
   getInitialState: ->
-    baseBoard = testBoard()
+    baseBoard = emptyBoard()
+    paused: false
     baseBoard: baseBoard
     board: baseBoard
+    gamestates: immut.Vector()
 
   addPiece: ->
-    piece = makePiece x: 0, y: 0
-    @setState
-      baseBoard: @state.board
-      board: makeBoard piece: piece, board: @state.board
-      piece: piece
+    piece = makePiece x: 4, y: 0
+    newBoard = makeBoard piece: piece, board: @state.board
+    if newBoard
+      @setState
+        baseBoard: @state.board
+        board: newBoard
+        piece: piece
+    else
+      @setState
+        gameOver: true
 
   componentDidMount: ->
     @addPiece()
@@ -172,21 +149,22 @@ Game = React.createClass
 
   run: ->
     kd.run -> kd.tick()
+    @listenForUserInput()
+    @startAutoPieceDrop()
+
+  listenForUserInput: ->
     kd.UP.press => @rotatePieceCW()
     kd.SPACE.press => @hardDropPiece()
+    kd.P.press => @setState paused: !@state.paused
     setInterval (=> @handleMovePiece()), 100
-    setInterval (=> @movePieceDown()), 1000
-    setInterval (=> @addPiece() if immut.is @state.prevBoard, @state.board), 1000
-    @monitorBoardChanges()
 
-  monitorBoardChanges: ->
-    startingBoard = @state.board
+  startAutoPieceDrop: ->
     fn = =>
-      if immut.is @state.board, startingBoard
-        console.debug "No board change...adding piece"
+      return if @state.paused
+      movedDown = @movePieceDown()
+      unless movedDown
         @addPiece()
-      @monitorBoardChanges()
-    setTimeout fn, 1000
+    setInterval fn, 800
 
   handleMovePiece: ->
     @movePieceRight() if kd.RIGHT.isDown()
@@ -194,7 +172,9 @@ Game = React.createClass
     @movePieceDown() if kd.DOWN.isDown()
 
   hardDropPiece: ->
-    console.warn "Not implemented"
+    for [1..BOARD_HEIGHT]
+      @updatePiece y: 1
+    @addPiece()
 
   rotatePieceCW: ->
     @updatePiece rotationIndex: 1
@@ -208,14 +188,19 @@ Game = React.createClass
       @setState rotationIndex: newRotationIndex, piece: newPiece
 
   updatePiece: (deltas={}) ->
-    console.debug "Attempting to update piece:", @state.piece.toJSON(), 'with:', deltas
     newPiece = updatePiece @state.piece, deltas
     newBoard = makeBoard piece: newPiece, board: @state.baseBoard
     if newBoard
-      console.debug ">> Success! New piece: ", newPiece.toJSON()
-      @setState board: newBoard, piece: newPiece
+      @setGamestate board: newBoard, piece: newPiece
+      true
     else
-      console.warn ">> Invalid move"
+      false
+
+  setGamestate: (data={}) ->
+    data.baseBoard ?= @state.baseBoard
+    newGamestate = immut.Map data
+    newState = _.extend data, gamestates: @state.gamestates.push newGamestate
+    @setState newState
 
   movePieceLeft: ->
     @updatePiece x: -1
@@ -226,8 +211,31 @@ Game = React.createClass
   movePieceDown: ->
     @updatePiece y: 1
 
+  resetGamestate: (gamestate) ->
+    @setState
+      baseBoard: gamestate.get('baseBoard')
+      board: gamestate.get('board')
+      piece: gamestate.get('piece')
+
   render: ->
     board = @state.board
-    <svg><Board cells={board} /></svg>
+
+    <div>
+      <div>
+        {if @state.paused then 'Paused' else 'Press P to pause'}
+      </div>
+      <div>
+        {if @state.gameOver then 'GAME OVER, MAN! GAME OVER!'}
+      </div>
+      <div>
+        <Board
+          width={BOARD_WIDTH}
+          height={BOARD_HEIGHT}
+          blockSize={BLOCK_SIZE}
+          cellSpacing={CELL_SPACING}
+          cells={@state.board}
+        />
+      </div>
+    </div>
 
 module.exports = Game
