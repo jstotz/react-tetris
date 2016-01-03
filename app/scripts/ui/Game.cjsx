@@ -1,7 +1,9 @@
-window._ = require 'underscore'
 immut = require 'immutable'
 kd = require 'keydrown'
 randomColor = require 'randomcolor'
+extend = require 'lodash/object/extend'
+random = require 'lodash/number/random'
+compact = require 'lodash/array/compact'
 
 Board = require './board.cjsx'
 
@@ -33,7 +35,7 @@ emptyBoard = ->
 
 makePiece = (data={}) ->
   data.rotationIndex ?= 0
-  data.type ?= _.random 0, PIECES.length-1
+  data.type ?= random 0, PIECES.length-1
   data.blocks ?= PIECES.get(data.type).get(data.rotationIndex)
   data.color ?= PIECE_COLORS[data.type] ? 'black'
   immut.fromJS data
@@ -59,10 +61,10 @@ getPieceVisibleBox = (piece) ->
     row.forEach (cell, xOffset) ->
       return unless cell
       [cellX, cellY] = [outerX + xOffset, outerY + yOffset]
-      minX = Math.min.apply @, _.compact([cellX, minX])
-      minY = Math.min.apply @, _.compact([cellY, minY])
-      maxX = Math.max.apply @, _.compact([cellX, maxX])
-      maxY = Math.max.apply @, _.compact([cellY, maxY])
+      minX = Math.min.apply @, compact([cellX, minX])
+      minY = Math.min.apply @, compact([cellY, minY])
+      maxX = Math.max.apply @, compact([cellX, maxX])
+      maxY = Math.max.apply @, compact([cellY, maxY])
   {x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1}
 
 # Returns copy of the given board with completed rows removed
@@ -199,7 +201,7 @@ Game = React.createClass
   setGamestate: (data={}) ->
     data.baseBoard ?= @state.baseBoard
     newGamestate = immut.Map data
-    newState = _.extend data, gamestates: @state.gamestates.push newGamestate
+    newState = extend data, gamestates: @state.gamestates.push newGamestate
     @setState newState
 
   movePieceLeft: ->
