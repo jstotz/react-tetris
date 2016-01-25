@@ -26,7 +26,7 @@ const Board = ({ cells, width, height, blockSize, cellSpacing }) => {
   })
 
   return (
-    <svg preserveAspectRatio="xMinYMin meet" height="100%" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
+    <svg preserveAspectRatio="xMinYMin meet" height="95%" viewBox={`0 0 ${svgWidth} ${svgHeight}`}>
       {blocks}
     </svg>
   )
