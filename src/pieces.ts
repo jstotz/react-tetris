@@ -1,6 +1,8 @@
-import { fromJS } from 'immutable'
+export type PieceBlocks = Array<Array<0 | 1>>;
 
-const J = [
+export type PieceType = Array<PieceBlocks>;
+
+const J: PieceType = [
   [
     [0, 1, 0],
     [0, 1, 0],
@@ -21,9 +23,9 @@ const J = [
     [1, 1, 1],
     [0, 0, 1],
   ],
-]
+];
 
-const L = [
+const L: PieceType = [
   [
     [0, 1, 0],
     [0, 1, 0],
@@ -44,9 +46,9 @@ const L = [
     [1, 1, 1],
     [0, 0, 0],
   ],
-]
+];
 
-const T = [
+const T: PieceType = [
   [
     [0, 0, 0],
     [1, 1, 1],
@@ -67,9 +69,9 @@ const T = [
     [0, 1, 1],
     [0, 1, 0],
   ],
-]
+];
 
-const I = [
+const I: PieceType = [
   [
     [0, 0, 0, 0],
     [1, 1, 1, 1],
@@ -94,9 +96,9 @@ const I = [
     [0, 1, 0, 0],
     [0, 1, 0, 0],
   ],
-]
+];
 
-const O = [
+const O: PieceType = [
   [
     [1, 1],
     [1, 1],
@@ -113,9 +115,9 @@ const O = [
     [1, 1],
     [1, 1],
   ],
-]
+];
 
-const S = [
+const S: PieceType = [
   [
     [0, 1, 1],
     [1, 1, 0],
@@ -136,9 +138,9 @@ const S = [
     [1, 1, 0],
     [0, 1, 0],
   ],
-]
+];
 
-const Z = [
+const Z: PieceType = [
   [
     [1, 1, 0],
     [0, 1, 1],
@@ -159,8 +161,8 @@ const Z = [
     [1, 1, 0],
     [1, 0, 0],
   ],
-]
+];
 
-const pieces = fromJS([J, T, L, I, S, Z, O])
+const pieces: Array<PieceType> = [J, T, L, I, S, Z, O];
 
-export default pieces
+export default pieces;
