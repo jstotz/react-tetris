@@ -1,4 +1,3 @@
-import React from 'react'
 
 const Board = ({ cells, width, height, blockSize, cellSpacing }) => {
   const svgWidth = width * blockSize + (width - 1) * cellSpacing
@@ -32,12 +31,16 @@ const Board = ({ cells, width, height, blockSize, cellSpacing }) => {
   )
 }
 
-Board.propTypes = {
-  cells: React.PropTypes.object,
-  width: React.PropTypes.number,
-  height: React.PropTypes.number,
-  blockSize: React.PropTypes.number,
-  cellSpacing: React.PropTypes.number,
+interface Cell {
+    [key: string]: any
+}
+
+interface BoardProps {
+  cells: Cell,
+  width: number,
+  height: number,
+  blockSize: number,
+  cellSpacing: number,
 }
 
 export default Board
