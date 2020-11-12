@@ -14,6 +14,7 @@ const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
 const BLOCK_SIZE = 10;
 const CELL_SPACING = 1;
+const DROP_INTERVAL = 800; // ms
 
 interface Piece {
   x: number;
@@ -25,11 +26,14 @@ interface Piece {
 }
 
 export function logBoard(board: BoardCells) {
-  if (!board) {
-    console.error("Invalid board:", board);
-    return;
-  }
   const rowText = board.map((row) =>
+    row.map((cell) => (cell ? "■" : "□")).join(" ")
+  );
+  console.log(rowText.join("\n"));
+}
+
+export function logPiece(piece: Piece) {
+  const rowText = piece.blocks.map((row) =>
     row.map((cell) => (cell ? "■" : "□")).join(" ")
   );
   console.log(rowText.join("\n"));
@@ -88,6 +92,16 @@ function removeCompletedRows(board: BoardCells) {
   return result;
 }
 
+function blockPositionValid(x: number, y: number, board: BoardCells) {
+  if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) {
+    return false;
+  }
+  if (board[y][x] !== null) {
+    return false;
+  }
+  return true;
+}
+
 function piecePositionValid(piece: Piece, board: BoardCells): boolean {
   for (let yOffset = 0; yOffset < piece.blocks.length; yOffset++) {
     for (let xOffset = 0; xOffset < piece.blocks[yOffset].length; xOffset++) {
@@ -96,10 +110,7 @@ function piecePositionValid(piece: Piece, board: BoardCells): boolean {
       if (!blockIsVisible) {
         continue;
       }
-      if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) {
-        return false;
-      }
-      if (board[y][x] == null) {
+      if (!blockPositionValid(x, y, board)) {
         return false;
       }
     }
@@ -109,10 +120,6 @@ function piecePositionValid(piece: Piece, board: BoardCells): boolean {
 
 // Returns a copy of the given board with the piece rendered into it
 function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
-  if (!piecePositionValid(piece, board)) {
-    throw new Error("Cannot render board. New piece position invalid.");
-  }
-
   return produce(board, (newBoard) => {
     piece.blocks.forEach((row, yOffset) => {
       row.forEach((blockIsVisible, xOffset) => {
@@ -120,7 +127,11 @@ function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
         const cell: Cell = {
           color: piece.color,
         };
-        newBoard[piece.y + yOffset][piece.x + xOffset] = cell;
+        const x = piece.x + xOffset;
+        const y = piece.y + yOffset;
+        if (blockPositionValid(x, y, board)) {
+          newBoard[y][x] = cell;
+        }
       });
     });
   });
@@ -164,20 +175,11 @@ function Game(): ReactElement {
     baseBoard: initialBoard,
   });
 
-  //   console.log(
-  //     "addPiece: calling setPiece because a piece was successfully added"
-  //   );
-  //   setPiece(piece);
-  //   setB(piece);
-  // } else {
-  //   console.log(
-  //     "addPiece: calling setState because a piece was added but there was no room and the game is over"
-  //   );
-  //   setGameOver(true);
-
   useEffect(() => {
     const addPiece = () => {
+      console.log("adding piece");
       setState((prevState) => {
+        if (prevState.gameOver) return prevState;
         let newState = { ...prevState };
         if (prevState.piece) {
           newState.baseBoard = makeBoard({
@@ -186,33 +188,56 @@ function Game(): ReactElement {
           });
         }
         const newPiece = makePiece();
+        newState.piece = newPiece;
+        console.log("attempting to add new piece:", newPiece);
         if (!piecePositionValid(newPiece, newState.baseBoard)) {
+          console.log("new piece position is invalid. game over");
           newState.gameOver = true;
         }
         return newState;
       });
     };
+
     const movePieceIfValid = (
       moveFn: (piece: Piece) => Piece,
-      onInvalid?: () => void
+      {
+        onInvalid,
+        onNoActivePiece,
+      }: {
+        onInvalid?: () => void;
+        onNoActivePiece?: () => void;
+      } = {}
     ): void => {
       setState((state) => {
-        if (state.paused) return state;
-        if (state.piece === null) return state;
+        if (state.paused) {
+          console.log("skipping move because game is paused");
+          return state;
+        }
+        if (state.piece === null) {
+          console.log("skipping move because there is no active piece");
+          if (onNoActivePiece) onNoActivePiece();
+          return state;
+        }
         const newPiece = moveFn(state.piece);
         if (!piecePositionValid(newPiece, state.baseBoard)) {
+          console.log("skipping invalid move");
           if (onInvalid) onInvalid();
           return state;
         }
+        console.log("valid move. updating piece", newPiece);
         return { ...state, piece: newPiece };
       });
     };
 
     const hardDropPiece = () => {
       times(BOARD_HEIGHT, () => {
-        movePieceIfValid(movePieceDown, addPiece);
+        movePieceIfValid(movePieceDown, {
+          onInvalid: () => {
+            console.log("hard drop hit invalid move. adding new piece");
+            addPiece();
+          },
+        });
       });
-      addPiece();
     };
 
     const handleMovePiece = () => {
@@ -235,10 +260,15 @@ function Game(): ReactElement {
     };
 
     const startAutoPieceDrop = () => {
-      const drop = () => {
-        movePieceIfValid(movePieceDown, addPiece);
-      };
-      setInterval(drop, 800);
+      setInterval(() => {
+        console.log("auto drop...");
+        movePieceIfValid(movePieceDown, {
+          onInvalid: () => {
+            console.log("auto drop hit invalid move. adding new piece");
+            addPiece();
+          },
+        });
+      }, DROP_INTERVAL);
     };
 
     console.log("initial setup effect fired");

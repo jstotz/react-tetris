@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactElement } from "react";
 
 export type BoardCells = Cell[][];
 
@@ -26,7 +26,7 @@ const Board = ({
   const svgWidth = width * blockSize + (width - 1) * cellSpacing;
   const svgHeight = height * blockSize + (height - 1) * cellSpacing;
 
-  const blocks = [] as any[];
+  const blocks = [] as ReactElement[];
   let y = 0;
   cells.forEach((row) => {
     let x = 0;
@@ -50,7 +50,7 @@ const Board = ({
   return (
     <svg
       preserveAspectRatio="xMinYMin meet"
-      height="100%"
+      height="800px"
       viewBox={`0 0 ${svgWidth} ${svgHeight}`}
     >
       {blocks}
