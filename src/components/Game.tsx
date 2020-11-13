@@ -1,8 +1,9 @@
+import { useHotkey } from "@react-hook/hotkey";
 import produce from "immer";
-import keydrown from "keydrown";
 import { defaults, random, times } from "lodash";
 import randomColor from "randomcolor";
-import React, { ReactElement, useEffect, useMemo, useState } from "react";
+import React, { ReactElement, useMemo, useState } from "react";
+import { useInterval } from "../hooks/useInterval";
 import PIECES, { PieceBlocks } from "../pieces";
 import Board, { BoardCells, Cell } from "./Board";
 
@@ -60,11 +61,7 @@ interface PieceDeltas {
 }
 
 function updatePiece(prevPiece: Piece, specifiedDeltas: PieceDeltas): Piece {
-  const deltas = defaults(specifiedDeltas, {
-    x: 0,
-    y: 0,
-    rotationIndex: 0,
-  });
+  const deltas = defaults(specifiedDeltas, { x: 0, y: 0, rotationIndex: 0 });
   let newRotationIndex = prevPiece.rotationIndex + deltas.rotationIndex;
   if (newRotationIndex > 3) {
     newRotationIndex = 0;
@@ -139,25 +136,29 @@ function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
 
 // Returns a new board with the piece rendered in the given position.
 // Removes any completed rows. If new piece position is invalid, returns false.
-function makeBoard({
-  piece,
-  board,
-}: {
-  piece: Piece | null;
-  board: BoardCells;
-}): BoardCells {
+function makeBoard(piece: Piece, board: BoardCells): BoardCells {
   let newBoard = board ? board : emptyBoard();
   newBoard = removeCompletedRows(newBoard);
   return piece ? boardWithPiece(newBoard, piece) : newBoard;
 }
 
+const movePieceToBottom = (piece: Piece, board: BoardCells) => {
+  while (true) {
+    let newPiece = updatePiece(piece, { y: 1 });
+    if (piecePositionValid(newPiece, board)) {
+      piece = newPiece;
+    } else {
+      return piece;
+    }
+  }
+};
 const movePieceLeft = (piece: Piece) => updatePiece(piece, { x: -1 });
 const movePieceRight = (piece: Piece) => updatePiece(piece, { x: 1 });
 const movePieceDown = (piece: Piece) => updatePiece(piece, { y: 1 });
 const rotatePiece = (piece: Piece) => updatePiece(piece, { rotationIndex: 1 });
 
 interface GameState {
-  piece: Piece | null;
+  piece: Piece;
   paused: boolean;
   gameOver: boolean;
   baseBoard: BoardCells;
@@ -165,118 +166,74 @@ interface GameState {
 
 function Game(): ReactElement {
   const initialBoard = useMemo(emptyBoard, [emptyBoard]);
+  const initialPiece = useMemo(makePiece, [makePiece]);
 
   const [{ gameOver, paused, piece, baseBoard }, setState] = useState<
     GameState
   >({
-    piece: null,
+    piece: initialPiece,
     gameOver: false,
     paused: false,
     baseBoard: initialBoard,
   });
 
-  useEffect(() => {
-    const addPiece = () => {
-      console.log("adding piece");
-      setState((prevState) => {
-        if (prevState.gameOver) return prevState;
-        let newState = { ...prevState };
-        if (prevState.piece) {
-          newState.baseBoard = makeBoard({
-            piece: prevState.piece,
-            board: prevState.baseBoard,
-          });
-        }
-        const newPiece = makePiece();
-        newState.piece = newPiece;
-        console.log("attempting to add new piece:", newPiece);
-        if (!piecePositionValid(newPiece, newState.baseBoard)) {
-          console.log("new piece position is invalid. game over");
-          newState.gameOver = true;
-        }
-        return newState;
-      });
-    };
+  const canMovePiece = (state: GameState): boolean =>
+    state.piece !== null && !state.paused && !state.gameOver;
 
-    const movePieceIfValid = (
-      moveFn: (piece: Piece) => Piece,
-      {
-        onInvalid,
-        onNoActivePiece,
-      }: {
-        onInvalid?: () => void;
-        onNoActivePiece?: () => void;
-      } = {}
-    ): void => {
-      setState((state) => {
-        if (state.paused) {
-          console.log("skipping move because game is paused");
-          return state;
-        }
-        if (state.piece === null) {
-          console.log("skipping move because there is no active piece");
-          if (onNoActivePiece) onNoActivePiece();
-          return state;
-        }
-        const newPiece = moveFn(state.piece);
-        if (!piecePositionValid(newPiece, state.baseBoard)) {
-          console.log("skipping invalid move");
-          if (onInvalid) onInvalid();
-          return state;
-        }
-        console.log("valid move. updating piece", newPiece);
-        return { ...state, piece: newPiece };
-      });
-    };
+  const movePieceIfValid = (
+    moveFn: (piece: Piece, board: BoardCells) => Piece
+  ) => {
+    setState((state) => {
+      if (!canMovePiece(state)) {
+        return state;
+      }
+      const newPiece = moveFn(state.piece, state.baseBoard);
+      if (!piecePositionValid(newPiece, state.baseBoard)) {
+        console.log("skipping invalid move");
+        return state;
+      }
+      console.log("valid move. updating piece", newPiece);
+      return { ...state, piece: newPiece };
+    });
+  };
 
-    const hardDropPiece = () => {
-      times(BOARD_HEIGHT, () => {
-        movePieceIfValid(movePieceDown, {
-          onInvalid: () => {
-            console.log("hard drop hit invalid move. adding new piece");
-            addPiece();
-          },
-        });
-      });
-    };
+  useHotkey(window, "up", () => movePieceIfValid(rotatePiece));
+  useHotkey(window, "down", () => movePieceIfValid(movePieceDown));
+  useHotkey(window, "left", () => movePieceIfValid(movePieceLeft));
+  useHotkey(window, "right", () => movePieceIfValid(movePieceRight));
+  useHotkey(window, "space", () => movePieceIfValid(movePieceToBottom));
+  useHotkey(window, "p", () =>
+    setState((state) => ({ ...state, paused: !state.paused }))
+  );
 
-    const handleMovePiece = () => {
-      if (keydrown.RIGHT.isDown()) movePieceIfValid(movePieceRight);
-      if (keydrown.LEFT.isDown()) movePieceIfValid(movePieceLeft);
-      if (keydrown.DOWN.isDown()) movePieceIfValid(movePieceDown);
-    };
+  useInterval(() => {
+    setState((state) => {
+      if (!canMovePiece(state)) {
+        return state;
+      }
 
-    const listenForUserInput = () => {
-      keydrown.UP.press(() => movePieceIfValid(rotatePiece));
-      keydrown.SPACE.press(hardDropPiece);
-      keydrown.P.press(() => {
-        console.log("setting state because pause key pressed");
-        setState((state) => {
-          return { ...state, paused: !state.paused };
-        });
-      });
+      const { baseBoard } = state;
 
-      setInterval(handleMovePiece, 100);
-    };
+      // Attempt to move the current piece down
+      let piece = movePieceDown(state.piece);
+      if (piecePositionValid(piece, baseBoard)) {
+        console.log("moved existing piece down");
+        return { ...state, piece };
+      }
 
-    const startAutoPieceDrop = () => {
-      setInterval(() => {
-        console.log("auto drop...");
-        movePieceIfValid(movePieceDown, {
-          onInvalid: () => {
-            console.log("auto drop hit invalid move. adding new piece");
-            addPiece();
-          },
-        });
-      }, DROP_INTERVAL);
-    };
+      // Couldn't move existing piece down so attempt to add a new piece
+      piece = makePiece();
+      if (!piecePositionValid(piece, baseBoard)) {
+        console.log("game over");
+        return { ...state, piece, gameOver: true };
+      }
 
-    console.log("initial setup effect fired");
-    addPiece();
-    keydrown.run(keydrown.tick);
-    listenForUserInput();
-    startAutoPieceDrop();
-  }, []);
+      console.log("Added new piece");
+      return { ...state, piece, baseBoard: makeBoard(state.piece, baseBoard) };
+    });
+  }, DROP_INTERVAL);
+
+  const board = makeBoard(piece, baseBoard);
 
   return (
     <div>
@@ -288,7 +245,7 @@ function Game(): ReactElement {
           height={BOARD_HEIGHT}
           blockSize={BLOCK_SIZE}
           cellSpacing={CELL_SPACING}
-          cells={makeBoard({ piece: piece, board: baseBoard })}
+          cells={board}
         />
       </div>
     </div>
