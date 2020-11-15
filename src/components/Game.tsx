@@ -189,10 +189,8 @@ function Game(): ReactElement {
       }
       const newPiece = moveFn(state.piece, state.baseBoard);
       if (!piecePositionValid(newPiece, state.baseBoard)) {
-        console.log("skipping invalid move");
         return state;
       }
-      console.log("valid move. updating piece", newPiece);
       return { ...state, piece: newPiece };
     });
   };
@@ -217,18 +215,15 @@ function Game(): ReactElement {
       // Attempt to move the current piece down
       let piece = movePieceDown(state.piece);
       if (piecePositionValid(piece, baseBoard)) {
-        console.log("moved existing piece down");
         return { ...state, piece };
       }
 
       // Couldn't move existing piece down so attempt to add a new piece
       piece = makePiece();
       if (!piecePositionValid(piece, baseBoard)) {
-        console.log("game over");
         return { ...state, piece, gameOver: true };
       }
 
-      console.log("Added new piece");
       return { ...state, piece, baseBoard: makeBoard(state.piece, baseBoard) };
     });
   }, DROP_INTERVAL);
