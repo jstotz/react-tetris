@@ -1,15 +1,16 @@
 import React, { ReactElement } from "react";
 
-export type BoardCells = Cell[][];
+export type CellType = "empty" | "piece" | "preview";
 
-export type Cell = CellData | null;
-
-export interface CellData {
+export interface Cell {
+  type: CellType;
   color: string;
 }
 
+export type BoardCells = Cell[][];
+
 interface BoardProps {
-  cells: BoardCells;
+  board: BoardCells;
   width: number;
   height: number;
   blockSize: number;
@@ -17,7 +18,7 @@ interface BoardProps {
 }
 
 const Board = ({
-  cells,
+  board,
   width,
   height,
   blockSize,
@@ -28,10 +29,9 @@ const Board = ({
 
   const blocks = [] as ReactElement[];
   let y = 0;
-  cells.forEach((row) => {
+  board.forEach((row) => {
     let x = 0;
     row.forEach((cell) => {
-      const color = cell ? cell.color : "#eee";
       blocks.push(
         <rect
           key={`${x},${y}`}
@@ -39,7 +39,7 @@ const Board = ({
           y={y}
           width={blockSize}
           height={blockSize}
-          fill={color}
+          fill={cell.color}
         />
       );
       x += blockSize + cellSpacing;

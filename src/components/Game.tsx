@@ -24,6 +24,7 @@ interface Piece {
   rotationIndex: number;
   blocks: PieceBlocks;
   color: string;
+  preview: boolean;
 }
 
 export function logBoard(board: BoardCells) {
@@ -40,7 +41,8 @@ export function logPiece(piece: Piece) {
   console.log(rowText.join("\n"));
 }
 
-const emptyRow = (): Cell[] => times(BOARD_WIDTH, () => null);
+const emptyRow = (): Cell[] =>
+  times(BOARD_WIDTH, () => ({ type: "empty", color: "#eee" }));
 const emptyBoard = (): BoardCells => times(BOARD_HEIGHT, emptyRow);
 
 function makePiece(): Piece {
@@ -52,8 +54,15 @@ function makePiece(): Piece {
     rotationIndex: 0,
     blocks: PIECES[type][0],
     color: PIECE_COLORS[type],
+    preview: false,
   };
 }
+
+function makePieceDropPreview(piece: Piece, board: BoardCells): Piece {
+  const previewPiece = { ...piece, color: "#ddd", preview: true };
+  return movePieceToBottom(previewPiece, board);
+}
+
 interface PieceDeltas {
   x?: number;
   y?: number;
@@ -79,9 +88,13 @@ function updatePiece(prevPiece: Piece, specifiedDeltas: PieceDeltas): Piece {
   return newPiece;
 }
 
+function cellOccupied(cell: Cell) {
+  return cell.type === "piece";
+}
+
 // Returns copy of the given board with completed rows removed
 function removeCompletedRows(board: BoardCells) {
-  let result = board.filter((row) => !row.every((cell) => cell !== null));
+  let result = board.filter((row) => !row.every(cellOccupied));
   if (result.length < BOARD_HEIGHT) {
     const newEmptyRows = times(BOARD_HEIGHT - result.length, emptyRow);
     result = newEmptyRows.concat(result);
@@ -93,7 +106,7 @@ function blockPositionValid(x: number, y: number, board: BoardCells) {
   if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) {
     return false;
   }
-  if (board[y][x] !== null) {
+  if (cellOccupied(board[y][x])) {
     return false;
   }
   return true;
@@ -123,6 +136,7 @@ function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
         if (!blockIsVisible) return;
         const cell: Cell = {
           color: piece.color,
+          type: piece.preview ? "preview" : "piece",
         };
         const x = piece.x + xOffset;
         const y = piece.y + yOffset;
@@ -229,6 +243,8 @@ function Game(): ReactElement {
   }, DROP_INTERVAL);
 
   const board = makeBoard(piece, baseBoard);
+  const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
+  const boardWithPreview = makeBoard(pieceDropPreview, board);
 
   return (
     <div>
@@ -240,7 +256,7 @@ function Game(): ReactElement {
           height={BOARD_HEIGHT}
           blockSize={BLOCK_SIZE}
           cellSpacing={CELL_SPACING}
-          cells={board}
+          board={boardWithPreview}
         />
       </div>
     </div>
