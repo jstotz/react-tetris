@@ -5,7 +5,7 @@ import randomColor from "randomcolor";
 import React, { ReactElement, useMemo, useState } from "react";
 import { useInterval } from "../hooks/useInterval";
 import PIECES, { PieceBlocks } from "../pieces";
-import Board, { BoardCells, Cell } from "./Board";
+import Board, { Cell } from "./Board";
 
 const PIECE_COLORS = randomColor({
   count: PIECES.length,
@@ -17,6 +17,12 @@ const BLOCK_SIZE = 10;
 const CELL_SPACING = 1;
 const DROP_INTERVAL = 800; // ms
 
+export interface BoardData {
+  width: number;
+  height: number;
+  grid: Cell[][];
+}
+
 interface Piece {
   x: number;
   y: number;
@@ -27,23 +33,35 @@ interface Piece {
   preview: boolean;
 }
 
-export function logBoard(board: BoardCells) {
-  const rowText = board.map((row) =>
+export function logBoard(board: BoardData): void {
+  const rowText = board.grid.map((row) =>
     row.map((cell) => (cell ? "■" : "□")).join(" ")
   );
   console.log(rowText.join("\n"));
 }
 
-export function logPiece(piece: Piece) {
+export function logPiece(piece: Piece): void {
   const rowText = piece.blocks.map((row) =>
     row.map((cell) => (cell ? "■" : "□")).join(" ")
   );
   console.log(rowText.join("\n"));
 }
 
-const emptyRow = (): Cell[] =>
-  times(BOARD_WIDTH, () => ({ type: "empty", color: "#eee" }));
-const emptyBoard = (): BoardCells => times(BOARD_HEIGHT, emptyRow);
+function emptyRow(width: number): Cell[] {
+  return times(BOARD_WIDTH, () => ({ type: "empty", color: "#eee" }));
+}
+
+function emptyGrid(width: number, height: number): Cell[][] {
+  return times(height, () => emptyRow(width));
+}
+
+function emptyBoard(width: number, height: number): BoardData {
+  return {
+    width: width,
+    height: height,
+    grid: emptyGrid(width, height),
+  };
+}
 
 function makePiece(): Piece {
   const type = random(0, PIECES.length - 1);
@@ -58,7 +76,7 @@ function makePiece(): Piece {
   };
 }
 
-function makePieceDropPreview(piece: Piece, board: BoardCells): Piece {
+function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
   const previewPiece = { ...piece, color: "#ddd", preview: true };
   return movePieceToBottom(previewPiece, board);
 }
@@ -88,31 +106,31 @@ function updatePiece(prevPiece: Piece, specifiedDeltas: PieceDeltas): Piece {
   return newPiece;
 }
 
-function cellOccupied(cell: Cell) {
+function cellOccupied(cell: Cell): boolean {
   return cell.type === "piece";
 }
 
 // Returns copy of the given board with completed rows removed
-function removeCompletedRows(board: BoardCells) {
-  let result = board.filter((row) => !row.every(cellOccupied));
+function removeCompletedRows(board: BoardData): BoardData {
+  let result = board.grid.filter((row) => !row.every(cellOccupied));
   if (result.length < BOARD_HEIGHT) {
     const newEmptyRows = times(BOARD_HEIGHT - result.length, emptyRow);
     result = newEmptyRows.concat(result);
   }
-  return result;
+  return { ...board, grid: result };
 }
 
-function blockPositionValid(x: number, y: number, board: BoardCells) {
+function blockPositionValid(x: number, y: number, board: BoardData): boolean {
   if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) {
     return false;
   }
-  if (cellOccupied(board[y][x])) {
+  if (cellOccupied(board.grid[y][x])) {
     return false;
   }
   return true;
 }
 
-function piecePositionValid(piece: Piece, board: BoardCells): boolean {
+function piecePositionValid(piece: Piece, board: BoardData): boolean {
   for (let yOffset = 0; yOffset < piece.blocks.length; yOffset++) {
     for (let xOffset = 0; xOffset < piece.blocks[yOffset].length; xOffset++) {
       const [x, y] = [xOffset + piece.x, yOffset + piece.y];
@@ -129,7 +147,7 @@ function piecePositionValid(piece: Piece, board: BoardCells): boolean {
 }
 
 // Returns a copy of the given board with the piece rendered into it
-function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
+function boardWithPiece(board: BoardData, piece: Piece): BoardData {
   return produce(board, (newBoard) => {
     piece.blocks.forEach((row, yOffset) => {
       row.forEach((blockIsVisible, xOffset) => {
@@ -141,7 +159,7 @@ function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
         const x = piece.x + xOffset;
         const y = piece.y + yOffset;
         if (blockPositionValid(x, y, board)) {
-          newBoard[y][x] = cell;
+          newBoard.grid[y][x] = cell;
         }
       });
     });
@@ -150,13 +168,11 @@ function boardWithPiece(board: BoardCells, piece: Piece): BoardCells {
 
 // Returns a new board with the piece rendered in the given position.
 // Removes any completed rows. If new piece position is invalid, returns false.
-function makeBoard(piece: Piece, board: BoardCells): BoardCells {
-  let newBoard = board ? board : emptyBoard();
-  newBoard = removeCompletedRows(newBoard);
-  return piece ? boardWithPiece(newBoard, piece) : newBoard;
+function makeBoard(piece: Piece, board: BoardData): BoardData {
+  return boardWithPiece(removeCompletedRows(board), piece);
 }
 
-const movePieceToBottom = (piece: Piece, board: BoardCells) => {
+const movePieceToBottom = (piece: Piece, board: BoardData) => {
   while (true) {
     let newPiece = updatePiece(piece, { y: 1 });
     if (piecePositionValid(newPiece, board)) {
@@ -173,19 +189,23 @@ const rotatePiece = (piece: Piece) => updatePiece(piece, { rotationIndex: 1 });
 
 interface GameState {
   piece: Piece;
+  nextPiece: Piece;
   paused: boolean;
   gameOver: boolean;
-  baseBoard: BoardCells;
+  baseBoard: BoardData;
 }
 
 function Game(): ReactElement {
-  const initialBoard = useMemo(emptyBoard, [emptyBoard]);
+  const initialBoard = useMemo(() => emptyBoard(BOARD_WIDTH, BOARD_HEIGHT), []);
   const initialPiece = useMemo(makePiece, [makePiece]);
+  const initialNextPiece = useMemo(makePiece, [makePiece]);
 
-  const [{ gameOver, paused, piece, baseBoard }, setState] = useState<
-    GameState
-  >({
+  const [
+    { gameOver, paused, piece, nextPiece, baseBoard },
+    setState,
+  ] = useState<GameState>({
     piece: initialPiece,
+    nextPiece: initialNextPiece,
     gameOver: false,
     paused: false,
     baseBoard: initialBoard,
@@ -195,7 +215,7 @@ function Game(): ReactElement {
     state.piece !== null && !state.paused && !state.gameOver;
 
   const movePieceIfValid = (
-    moveFn: (piece: Piece, board: BoardCells) => Piece
+    moveFn: (piece: Piece, board: BoardData) => Piece
   ) => {
     setState((state) => {
       if (!canMovePiece(state)) {
@@ -233,18 +253,27 @@ function Game(): ReactElement {
       }
 
       // Couldn't move existing piece down so attempt to add a new piece
-      piece = makePiece();
+      piece = state.nextPiece;
       if (!piecePositionValid(piece, baseBoard)) {
         return { ...state, piece, gameOver: true };
       }
 
-      return { ...state, piece, baseBoard: makeBoard(state.piece, baseBoard) };
+      return {
+        ...state,
+        piece,
+        nextPiece: makePiece(),
+        baseBoard: makeBoard(state.piece, baseBoard),
+      };
     });
   }, DROP_INTERVAL);
 
-  const board = makeBoard(piece, baseBoard);
   const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
-  const boardWithPreview = makeBoard(pieceDropPreview, board);
+  const board = makeBoard(pieceDropPreview, makeBoard(piece, baseBoard));
+  const nextPiecePreviewBoard = makeBoard(nextPiece, {
+    width: 10,
+    height: 10,
+    grid: emptyGrid(10, 10),
+  });
 
   return (
     <div>
@@ -252,11 +281,14 @@ function Game(): ReactElement {
       <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
       <div>
         <Board
-          width={BOARD_WIDTH}
-          height={BOARD_HEIGHT}
           blockSize={BLOCK_SIZE}
           cellSpacing={CELL_SPACING}
-          board={boardWithPreview}
+          board={board}
+        />
+        <Board
+          blockSize={BLOCK_SIZE}
+          cellSpacing={CELL_SPACING}
+          board={nextPiecePreviewBoard}
         />
       </div>
     </div>

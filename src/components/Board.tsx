@@ -1,4 +1,5 @@
 import React, { ReactElement } from "react";
+import { BoardData } from "./Game";
 
 export type CellType = "empty" | "piece" | "preview";
 
@@ -7,29 +8,20 @@ export interface Cell {
   color: string;
 }
 
-export type BoardCells = Cell[][];
-
 interface BoardProps {
-  board: BoardCells;
-  width: number;
-  height: number;
+  board: BoardData;
   blockSize: number;
   cellSpacing: number;
 }
 
-const Board = ({
-  board,
-  width,
-  height,
-  blockSize,
-  cellSpacing,
-}: BoardProps) => {
+const Board = ({ board, blockSize, cellSpacing }: BoardProps) => {
+  const { width, height, grid } = board;
   const svgWidth = width * blockSize + (width - 1) * cellSpacing;
   const svgHeight = height * blockSize + (height - 1) * cellSpacing;
 
   const blocks = [] as ReactElement[];
   let y = 0;
-  board.forEach((row) => {
+  grid.forEach((row) => {
     let x = 0;
     row.forEach((cell) => {
       blocks.push(
