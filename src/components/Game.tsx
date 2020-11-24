@@ -1,57 +1,60 @@
 import { useHotkey } from "@react-hook/hotkey";
 import produce from "immer";
-import { defaults, random, times } from "lodash";
+import { random, times } from "lodash";
 import randomColor from "randomcolor";
 import React, { ReactElement, useMemo, useState } from "react";
 import { useInterval } from "../hooks/useInterval";
-import PIECES, { PieceBlocks } from "../pieces";
-import Board, { Cell } from "./Board";
+import {
+  BoardData,
+  Cell,
+  Grid,
+  Piece,
+  PieceShape,
+  rotateGrid,
+} from "../lib/core";
+import PIECES from "../lib/pieces";
+import { LIGHT_THEME, ThemeContext } from "../ThemeContext";
+import Board from "./Board";
 
-const PIECE_COLORS = randomColor({
-  count: PIECES.length,
-  luminosity: "bright",
-});
+const PIECE_COLORS = new Map<PieceShape, string>();
+PIECES.forEach((piece) =>
+  PIECE_COLORS.set(piece.shape, randomColor({ luminosity: "bright" }))
+);
+
 const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
-const BLOCK_SIZE = 10;
-const CELL_SPACING = 1;
 const DROP_INTERVAL = 800; // ms
 
-export interface BoardData {
-  width: number;
-  height: number;
-  grid: Cell[][];
+export function gridToString(grid: Grid): string {
+  return grid
+    .map((row) =>
+      row
+        .map((cell) => {
+          switch (cell.type) {
+            case "piece":
+              return cell.shape;
+            case "empty":
+              return "#";
+            case "preview":
+              return "P";
+            default:
+              throw new Error("unexpected cell type");
+          }
+        })
+        .join("")
+    )
+    .join("\n");
 }
 
-interface Piece {
-  x: number;
-  y: number;
-  type: number;
-  rotationIndex: number;
-  blocks: PieceBlocks;
-  color: string;
-  preview: boolean;
-}
-
-export function logBoard(board: BoardData): void {
-  const rowText = board.grid.map((row) =>
-    row.map((cell) => (cell ? "■" : "□")).join(" ")
-  );
-  console.log(rowText.join("\n"));
-}
-
-export function logPiece(piece: Piece): void {
-  const rowText = piece.blocks.map((row) =>
-    row.map((cell) => (cell ? "■" : "□")).join(" ")
-  );
-  console.log(rowText.join("\n"));
+export function logGrid(grid: Grid): void {
+  console.log(gridToString(grid));
 }
 
 function emptyRow(width: number): Cell[] {
-  return times(BOARD_WIDTH, () => ({ type: "empty", color: "#eee" }));
+  return times(width, () => ({ type: "empty", color: "#eee" }));
 }
 
-function emptyGrid(width: number, height: number): Cell[][] {
+function emptyGrid(width: number, height: number): Grid {
   return times(height, () => emptyRow(width));
 }
 
@@ -63,47 +66,17 @@ function emptyBoard(width: number, height: number): BoardData {
   };
 }
 
-function makePiece(): Piece {
-  const type = random(0, PIECES.length - 1);
+function makePiece(values: Partial<Piece> = {}): Piece {
+  const basePiece = PIECES[random(0, PIECES.length - 1)];
   return {
-    x: 4,
-    y: 0,
-    type,
-    rotationIndex: 0,
-    blocks: PIECES[type][0],
-    color: PIECE_COLORS[type],
-    preview: false,
+    ...basePiece,
+    ...values,
   };
 }
 
 function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
   const previewPiece = { ...piece, color: "#ddd", preview: true };
   return movePieceToBottom(previewPiece, board);
-}
-
-interface PieceDeltas {
-  x?: number;
-  y?: number;
-  rotationIndex?: number;
-}
-
-function updatePiece(prevPiece: Piece, specifiedDeltas: PieceDeltas): Piece {
-  const deltas = defaults(specifiedDeltas, { x: 0, y: 0, rotationIndex: 0 });
-  let newRotationIndex = prevPiece.rotationIndex + deltas.rotationIndex;
-  if (newRotationIndex > 3) {
-    newRotationIndex = 0;
-  }
-  if (newRotationIndex < 0) {
-    newRotationIndex = 3;
-  }
-  const newPiece = {
-    ...prevPiece,
-    rotationIndex: newRotationIndex,
-    blocks: PIECES[prevPiece.type][newRotationIndex],
-    x: prevPiece.x + deltas.x,
-    y: prevPiece.y + deltas.y,
-  };
-  return newPiece;
 }
 
 function cellOccupied(cell: Cell): boolean {
@@ -113,32 +86,42 @@ function cellOccupied(cell: Cell): boolean {
 // Returns copy of the given board with completed rows removed
 function removeCompletedRows(board: BoardData): BoardData {
   let result = board.grid.filter((row) => !row.every(cellOccupied));
-  if (result.length < BOARD_HEIGHT) {
-    const newEmptyRows = times(BOARD_HEIGHT - result.length, emptyRow);
+  if (result.length < board.height) {
+    const newEmptyRows = times(board.height - result.length, emptyRow);
     result = newEmptyRows.concat(result);
   }
   return { ...board, grid: result };
 }
 
-function blockPositionValid(x: number, y: number, board: BoardData): boolean {
-  if (x < 0 || x >= BOARD_WIDTH || y < 0 || y >= BOARD_HEIGHT) {
-    return false;
+function boardPositionWithinBounds(
+  x: number,
+  y: number,
+  board: BoardData
+): boolean {
+  return x > 0 && x < board.width && y > 0 && y < board.height;
+}
+
+function boardPositionValid(x: number, y: number, board: BoardData): boolean {
+  try {
+    return (
+      boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
+    );
+  } catch (error) {
+    console.error(error);
+    throw error;
   }
-  if (cellOccupied(board.grid[y][x])) {
-    return false;
-  }
-  return true;
 }
 
 function piecePositionValid(piece: Piece, board: BoardData): boolean {
-  for (let yOffset = 0; yOffset < piece.blocks.length; yOffset++) {
-    for (let xOffset = 0; xOffset < piece.blocks[yOffset].length; xOffset++) {
+  for (let yOffset = 0; yOffset < piece.grid.length; yOffset++) {
+    for (let xOffset = 0; xOffset < piece.grid[yOffset].length; xOffset++) {
       const [x, y] = [xOffset + piece.x, yOffset + piece.y];
-      const blockIsVisible = piece.blocks[yOffset][xOffset] === 1;
+      const cell = piece.grid[yOffset][xOffset];
+      const blockIsVisible = cell.type !== "empty";
       if (!blockIsVisible) {
         continue;
       }
-      if (!blockPositionValid(x, y, board)) {
+      if (!boardPositionValid(x, y, board)) {
         return false;
       }
     }
@@ -149,16 +132,16 @@ function piecePositionValid(piece: Piece, board: BoardData): boolean {
 // Returns a copy of the given board with the piece rendered into it
 function boardWithPiece(board: BoardData, piece: Piece): BoardData {
   return produce(board, (newBoard) => {
-    piece.blocks.forEach((row, yOffset) => {
-      row.forEach((blockIsVisible, xOffset) => {
-        if (!blockIsVisible) return;
+    piece.grid.forEach((row, yOffset) => {
+      row.forEach((pieceCell, xOffset) => {
+        if (pieceCell.type === "empty") return;
         const cell: Cell = {
-          color: piece.color,
           type: piece.preview ? "preview" : "piece",
+          shape: piece.shape,
         };
         const x = piece.x + xOffset;
         const y = piece.y + yOffset;
-        if (blockPositionValid(x, y, board)) {
+        if (boardPositionValid(x, y, board)) {
           newBoard.grid[y][x] = cell;
         }
       });
@@ -174,7 +157,7 @@ function makeBoard(piece: Piece, board: BoardData): BoardData {
 
 const movePieceToBottom = (piece: Piece, board: BoardData) => {
   while (true) {
-    let newPiece = updatePiece(piece, { y: 1 });
+    let newPiece = { ...piece, y: piece.y + 1 };
     if (piecePositionValid(newPiece, board)) {
       piece = newPiece;
     } else {
@@ -182,10 +165,13 @@ const movePieceToBottom = (piece: Piece, board: BoardData) => {
     }
   }
 };
-const movePieceLeft = (piece: Piece) => updatePiece(piece, { x: -1 });
-const movePieceRight = (piece: Piece) => updatePiece(piece, { x: 1 });
-const movePieceDown = (piece: Piece) => updatePiece(piece, { y: 1 });
-const rotatePiece = (piece: Piece) => updatePiece(piece, { rotationIndex: 1 });
+const movePieceLeft = (piece: Piece) => ({ ...piece, x: piece.x - 1 });
+const movePieceRight = (piece: Piece) => ({ ...piece, x: piece.x + 1 });
+const movePieceDown = (piece: Piece) => ({ ...piece, y: piece.y + 1 });
+const rotatePiece = (piece: Piece) => ({
+  ...piece,
+  grid: rotateGrid(piece.grid),
+});
 
 interface GameState {
   piece: Piece;
@@ -197,7 +183,7 @@ interface GameState {
 
 function Game(): ReactElement {
   const initialBoard = useMemo(() => emptyBoard(BOARD_WIDTH, BOARD_HEIGHT), []);
-  const initialPiece = useMemo(makePiece, [makePiece]);
+  const initialPiece = useMemo(() => makePiece({ x: 4 }), []);
   const initialNextPiece = useMemo(makePiece, [makePiece]);
 
   const [
@@ -276,22 +262,16 @@ function Game(): ReactElement {
   });
 
   return (
-    <div>
-      <div>{paused ? "Paused" : "Press P to pause"}</div>
-      <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
+    <ThemeContext.Provider value={LIGHT_THEME}>
       <div>
-        <Board
-          blockSize={BLOCK_SIZE}
-          cellSpacing={CELL_SPACING}
-          board={board}
-        />
-        <Board
-          blockSize={BLOCK_SIZE}
-          cellSpacing={CELL_SPACING}
-          board={nextPiecePreviewBoard}
-        />
+        <div>{paused ? "Paused" : "Press P to pause"}</div>
+        <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
+        <div>
+          <Board board={board} />
+          <Board board={nextPiecePreviewBoard} />
+        </div>
       </div>
-    </div>
+    </ThemeContext.Provider>
   );
 }
 

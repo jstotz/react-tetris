@@ -8,3 +8,4 @@ A mostly working experimental implementation of Tetris using
 * Next Piece Preview
 * Scoring
 * Sound
+* Dark/Light Mode

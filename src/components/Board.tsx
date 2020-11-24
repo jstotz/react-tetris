@@ -1,52 +1,46 @@
-import React, { ReactElement } from "react";
-import { BoardData } from "./Game";
+import React, { ReactElement, useContext } from "react";
+import { BoardData, Cell } from "../lib/core";
+import { Theme, ThemeContext } from "../ThemeContext";
+import styles from "./Board.module.css";
 
-export type CellType = "empty" | "piece" | "preview";
-
-export interface Cell {
-  type: CellType;
-  color: string;
+function cellColor(cell: Cell, theme: Theme): string {
+  switch (cell.type) {
+    case "empty":
+      return theme.emptyCellColor;
+    case "preview":
+      return theme.previewColor;
+    case "piece":
+      return theme.pieceColors[cell.shape];
+  }
 }
 
-interface BoardProps {
-  board: BoardData;
-  blockSize: number;
-  cellSpacing: number;
-}
-
-const Board = ({ board, blockSize, cellSpacing }: BoardProps) => {
-  const { width, height, grid } = board;
-  const svgWidth = width * blockSize + (width - 1) * cellSpacing;
-  const svgHeight = height * blockSize + (height - 1) * cellSpacing;
+const Board = ({ board }: { board: BoardData }) => {
+  const theme = useContext(ThemeContext);
+  const { grid } = board;
 
   const blocks = [] as ReactElement[];
-  let y = 0;
-  grid.forEach((row) => {
-    let x = 0;
-    row.forEach((cell) => {
+  grid.forEach((row, y) => {
+    row.forEach((cell, x) => {
       blocks.push(
-        <rect
+        <div
           key={`${x},${y}`}
-          x={x}
-          y={y}
-          width={blockSize}
-          height={blockSize}
-          fill={cell.color}
+          style={{
+            backgroundColor: cellColor(cell, theme),
+          }}
         />
       );
-      x += blockSize + cellSpacing;
     });
-    y += blockSize + cellSpacing;
   });
 
   return (
-    <svg
-      preserveAspectRatio="xMinYMin meet"
-      height="800px"
-      viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+    <div
+      className={styles.board}
+      style={{
+        gridTemplateColumns: `repeat(${board.width}, 1fr)`,
+      }}
     >
       {blocks}
-    </svg>
+    </div>
   );
 };
 
