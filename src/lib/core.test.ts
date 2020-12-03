@@ -1,5 +1,5 @@
-import { gridToString } from "../components/Game";
 import { Piece, rotateGrid } from "./core";
+import { gridToString } from "./debug";
 import { definePiece, I, J } from "./pieces";
 
 export type Block = 1 | 0;
