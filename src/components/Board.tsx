@@ -27,7 +27,9 @@ const Board = ({ board }: { board: BoardData }) => {
           style={{
             backgroundColor: cellColor(cell, theme),
           }}
-        />
+        >
+          {x},{y}
+        </div>
       );
     });
   });
@@ -36,7 +38,10 @@ const Board = ({ board }: { board: BoardData }) => {
     <div
       className={styles.board}
       style={{
+        height: "100%",
+        width: "100%",
         gridTemplateColumns: `repeat(${board.width}, 1fr)`,
+        gridTemplateRows: `repeat(${board.height}, 1fr)`,
       }}
     >
       {blocks}

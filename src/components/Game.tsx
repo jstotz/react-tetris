@@ -4,6 +4,7 @@ import { random, times } from "lodash";
 import randomColor from "randomcolor";
 import React, { ReactElement, useMemo, useState } from "react";
 import { useInterval } from "../hooks/useInterval";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import {
   BoardData,
   Cell,
@@ -87,7 +88,9 @@ function cellOccupied(cell: Cell): boolean {
 function removeCompletedRows(board: BoardData): BoardData {
   let result = board.grid.filter((row) => !row.every(cellOccupied));
   if (result.length < board.height) {
-    const newEmptyRows = times(board.height - result.length, emptyRow);
+    const newEmptyRows = times(board.height - result.length, () =>
+      emptyRow(board.width)
+    );
     result = newEmptyRows.concat(result);
   }
   return { ...board, grid: result };
@@ -98,7 +101,7 @@ function boardPositionWithinBounds(
   y: number,
   board: BoardData
 ): boolean {
-  return x > 0 && x < board.width && y > 0 && y < board.height;
+  return x >= 0 && x < board.width && y >= 0 && y < board.height;
 }
 
 function boardPositionValid(x: number, y: number, board: BoardData): boolean {
@@ -106,9 +109,9 @@ function boardPositionValid(x: number, y: number, board: BoardData): boolean {
     return (
       boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
     );
-  } catch (error) {
-    console.error(error);
-    throw error;
+  } catch (e) {
+    debugger;
+    throw e;
   }
 }
 
@@ -130,7 +133,7 @@ function piecePositionValid(piece: Piece, board: BoardData): boolean {
 }
 
 // Returns a copy of the given board with the piece rendered into it
-function boardWithPiece(board: BoardData, piece: Piece): BoardData {
+function renderPiece(piece: Piece, board: BoardData): BoardData {
   return produce(board, (newBoard) => {
     piece.grid.forEach((row, yOffset) => {
       row.forEach((pieceCell, xOffset) => {
@@ -143,16 +146,12 @@ function boardWithPiece(board: BoardData, piece: Piece): BoardData {
         const y = piece.y + yOffset;
         if (boardPositionValid(x, y, board)) {
           newBoard.grid[y][x] = cell;
+        } else {
+          console.log("skipping invalid cell position", cell, x, y);
         }
       });
     });
   });
-}
-
-// Returns a new board with the piece rendered in the given position.
-// Removes any completed rows. If new piece position is invalid, returns false.
-function makeBoard(piece: Piece, board: BoardData): BoardData {
-  return boardWithPiece(removeCompletedRows(board), piece);
 }
 
 const movePieceToBottom = (piece: Piece, board: BoardData) => {
@@ -185,17 +184,24 @@ function Game(): ReactElement {
   const initialBoard = useMemo(() => emptyBoard(BOARD_WIDTH, BOARD_HEIGHT), []);
   const initialPiece = useMemo(() => makePiece({ x: 4 }), []);
   const initialNextPiece = useMemo(makePiece, [makePiece]);
-
-  const [
-    { gameOver, paused, piece, nextPiece, baseBoard },
-    setState,
-  ] = useState<GameState>({
+  const defaultInitialGameState = {
     piece: initialPiece,
     nextPiece: initialNextPiece,
     gameOver: false,
     paused: false,
     baseBoard: initialBoard,
-  });
+  };
+
+  const [initialGameState, setSavedGameState] = useLocalStorage(
+    "gameState",
+    defaultInitialGameState
+  );
+
+  const [gameState, setState] = useState<GameState>(initialGameState);
+  const { gameOver, paused, piece, nextPiece, baseBoard } = gameState;
+
+  const saveGameState = () => setSavedGameState(gameState);
+  const resetSavedGameState = () => setSavedGameState(null);
 
   const canMovePiece = (state: GameState): boolean =>
     state.piece !== null && !state.paused && !state.gameOver;
@@ -219,43 +225,61 @@ function Game(): ReactElement {
   useHotkey(window, "down", () => movePieceIfValid(movePieceDown));
   useHotkey(window, "left", () => movePieceIfValid(movePieceLeft));
   useHotkey(window, "right", () => movePieceIfValid(movePieceRight));
-  useHotkey(window, "space", () => movePieceIfValid(movePieceToBottom));
-  useHotkey(window, "p", () =>
-    setState((state) => ({ ...state, paused: !state.paused }))
-  );
-
-  useInterval(() => {
+  useHotkey(window, "space", () => {
     setState((state) => {
       if (!canMovePiece(state)) {
         return state;
       }
-
-      const { baseBoard } = state;
-
-      // Attempt to move the current piece down
-      let piece = movePieceDown(state.piece);
-      if (piecePositionValid(piece, baseBoard)) {
-        return { ...state, piece };
+      const newPiece = movePieceToBottom(state.piece, state.baseBoard);
+      if (!piecePositionValid(newPiece, state.baseBoard)) {
+        return state;
       }
-
-      // Couldn't move existing piece down so attempt to add a new piece
-      piece = state.nextPiece;
-      if (!piecePositionValid(piece, baseBoard)) {
-        return { ...state, piece, gameOver: true };
-      }
-
-      return {
-        ...state,
-        piece,
-        nextPiece: makePiece(),
-        baseBoard: makeBoard(state.piece, baseBoard),
-      };
+      return tick({ ...state, piece: newPiece });
     });
-  }, DROP_INTERVAL);
+  });
+  useHotkey(window, "p", () =>
+    setState((state) => ({ ...state, paused: !state.paused }))
+  );
+  useHotkey(window, "s", saveGameState);
+  useHotkey(window, "r", resetSavedGameState);
+
+  const tick = (state: GameState) => {
+    if (!canMovePiece(state)) {
+      return state;
+    }
+
+    let { baseBoard } = state;
+
+    // Attempt to move the current piece down
+    let piece = movePieceDown(state.piece);
+    if (piecePositionValid(piece, baseBoard)) {
+      return { ...state, piece };
+    }
+
+    // Couldn't move existing piece down so freeze it, clear any completed rows
+    // and attempt to add a new piece
+    piece = state.nextPiece;
+    baseBoard = removeCompletedRows(renderPiece(state.piece, baseBoard));
+
+    // If the next piece can't be placed, the game is over
+    if (!piecePositionValid(piece, baseBoard)) {
+      return { ...state, piece, baseBoard, gameOver: true };
+    }
+
+    return {
+      ...state,
+      piece,
+      nextPiece: makePiece(),
+      baseBoard: baseBoard,
+    };
+  };
+
+  // Auto-piece drop interval
+  useInterval(() => setState(tick), DROP_INTERVAL);
 
   const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
-  const board = makeBoard(pieceDropPreview, makeBoard(piece, baseBoard));
-  const nextPiecePreviewBoard = makeBoard(nextPiece, {
+  const board = renderPiece(pieceDropPreview, renderPiece(piece, baseBoard));
+  const nextPiecePreviewBoard = renderPiece(nextPiece, {
     width: 10,
     height: 10,
     grid: emptyGrid(10, 10),
@@ -263,14 +287,20 @@ function Game(): ReactElement {
 
   return (
     <ThemeContext.Provider value={LIGHT_THEME}>
-      <div>
-        <div>{paused ? "Paused" : "Press P to pause"}</div>
-        <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
-        <div>
-          <Board board={board} />
-          <Board board={nextPiecePreviewBoard} />
+      <>
+        <div style={{ height: "5%" }}>
+          <button onClick={saveGameState}>Save Initial Game State</button>
+          <button onClick={resetSavedGameState}>
+            Reset Initial Game State
+          </button>
+          <div>{paused ? "Paused" : "Press P to pause"}</div>
+          <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
         </div>
-      </div>
+        <div style={{ height: "95%" }}>
+          <Board board={board} />
+          {/* <Board board={nextPiecePreviewBoard} /> */}
+        </div>
+      </>
     </ThemeContext.Provider>
   );
 }

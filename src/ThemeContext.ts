@@ -11,8 +11,8 @@ export type Theme = {
 };
 
 export const LIGHT_THEME: Theme = {
-  emptyCellColor: "#cccccc",
-  previewColor: "#dddddd",
+  emptyCellColor: "#eeeeee",
+  previewColor: "#cccccc",
   pieceColors: {
     J: randomColor({ luminosity: "bright" }),
     T: randomColor({ luminosity: "bright" }),

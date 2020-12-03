@@ -11,17 +11,19 @@
   display: grid;
   gap: 2px 2px;
   grid-auto-rows: 1fr;
+  height: 100%;
+  width: 100%;
 }
 
-.board::before {
+/* .board::before {
   content: "";
   width: 0;
   padding-bottom: 100%;
   grid-row: 1 / 1;
   grid-column: 1 / 1;
-}
+} */
 
-.board > *:first-child {
+/* .board > *:first-child {
   grid-row: 1 / 1;
   grid-column: 1 / 1;
-}
+} */
