@@ -4,6 +4,7 @@ import { useInterval } from "../hooks/useInterval";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import {
   BoardData,
+  calculateScore,
   makeEmptyBoard,
   makePieceDropPreview,
   makeRandomPiece,
@@ -30,6 +31,7 @@ interface GameState {
   paused: boolean;
   gameOver: boolean;
   baseBoard: BoardData;
+  score: number;
 }
 
 const makeRandomPieceCentered = () => makeRandomPiece({ x: 4 });
@@ -49,6 +51,7 @@ function Game(): ReactElement {
     gameOver: false,
     paused: false,
     baseBoard: initialBoard,
+    score: 0,
   };
 
   const [initialGameState, setSavedGameState] = useLocalStorage(
@@ -57,7 +60,7 @@ function Game(): ReactElement {
   );
 
   const [gameState, setState] = useState<GameState>(initialGameState);
-  const { gameOver, paused, piece, baseBoard } = gameState;
+  const { gameOver, paused, piece, baseBoard, score } = gameState;
 
   const saveGameState = () => setSavedGameState(gameState);
   const resetSavedGameState = () => setSavedGameState(null);
@@ -118,7 +121,11 @@ function Game(): ReactElement {
     // Couldn't move existing piece down so freeze it, clear any completed rows
     // and attempt to add a new piece
     piece = state.nextPiece;
-    baseBoard = removeCompletedRows(renderPiece(state.piece, baseBoard));
+    let { board, completedRowCount } = removeCompletedRows(
+      renderPiece(state.piece, baseBoard)
+    );
+    baseBoard = board;
+    state.score += calculateScore(completedRowCount);
 
     // If the next piece can't be placed, the game is over
     if (!piecePositionValid(piece, baseBoard)) {
@@ -148,11 +155,19 @@ function Game(): ReactElement {
           <button onClick={() => setTheme(nextThemeId)}>
             {nextThemeId === "dark" ? "Dark Mode" : "Light Mode"}
           </button>
-          <button onClick={saveGameState}>Save Initial Game State</button>
-          <button onClick={resetSavedGameState}>
-            Reset Initial Game State
+          <button onClick={saveGameState}>Save Game State</button>
+          <button
+            onClick={() => {
+              resetSavedGameState();
+              window.location.reload();
+            }}
+          >
+            Reset Game State
           </button>
           <div>{paused ? "Paused" : "Press P to pause"}</div>
+          <div>
+            <strong>Score:</strong> {score}
+          </div>
           <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
         </div>
         <div style={{ height: "95%" }}>

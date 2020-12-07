@@ -25,8 +25,8 @@ export const THEMES: { [key: string]: Theme } = {
     },
   },
   dark: {
-    emptyCellColor: "#1c1c1c",
-    previewColor: "#363636",
+    emptyCellColor: "#333333",
+    previewColor: "#555555",
     pieceColors: {
       J: randomColor({ luminosity: "dark" }),
       T: randomColor({ luminosity: "dark" }),

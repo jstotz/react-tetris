@@ -1,4 +1,4 @@
-import React, { ReactElement, useContext } from "react";
+import React, { useContext } from "react";
 import { BoardData, Cell } from "../lib/core";
 import { Theme, ThemeContext } from "../ThemeContext";
 import styles from "./Board.module.css";
@@ -18,22 +18,6 @@ const Board = ({ board }: { board: BoardData }) => {
   const theme = useContext(ThemeContext);
   const { grid } = board;
 
-  const blocks = [] as ReactElement[];
-  grid.forEach((row, y) => {
-    row.forEach((cell, x) => {
-      blocks.push(
-        <div
-          key={`${x},${y}`}
-          style={{
-            backgroundColor: cellColor(cell, theme),
-          }}
-        >
-          {x},{y}
-        </div>
-      );
-    });
-  });
-
   return (
     <div
       className={styles.board}
@@ -44,7 +28,16 @@ const Board = ({ board }: { board: BoardData }) => {
         gridTemplateRows: `repeat(${board.height}, 1fr)`,
       }}
     >
-      {blocks}
+      {grid.flatMap((row, y) =>
+        row.flatMap((cell, x) => (
+          <div
+            key={`${x},${y}`}
+            style={{
+              backgroundColor: cellColor(cell, theme),
+            }}
+          ></div>
+        ))
+      )}
     </div>
   );
 };

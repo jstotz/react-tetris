@@ -75,15 +75,18 @@ export function cellOccupied(cell: Cell): boolean {
 }
 
 // Returns copy of the given board with completed rows removed
-export function removeCompletedRows(board: BoardData): BoardData {
-  let result = board.grid.filter((row) => !row.every(cellOccupied));
-  if (result.length < board.height) {
-    const newEmptyRows = times(board.height - result.length, () =>
+export function removeCompletedRows(
+  board: BoardData
+): { board: BoardData; completedRowCount: number } {
+  let newGrid = board.grid.filter((row) => !row.every(cellOccupied));
+  let completedRowCount = board.height - newGrid.length;
+  if (completedRowCount > 0) {
+    const newEmptyRows = times(board.height - newGrid.length, () =>
       emptyRow(board.width)
     );
-    result = newEmptyRows.concat(result);
+    newGrid = newEmptyRows.concat(newGrid);
   }
-  return { ...board, grid: result };
+  return { board: { ...board, grid: newGrid }, completedRowCount };
 }
 
 export function boardPositionWithinBounds(
@@ -166,6 +169,19 @@ export const rotatePiece = (piece: Piece) => ({
   grid: rotateGrid(piece.grid),
 });
 
-// export function centerPieceOnBoard(piece: Piece, board: BoardData): Piece {
-//   return {};
-// }
+export function calculateScore(completedRowCount: number): number {
+  switch (completedRowCount) {
+    case 0:
+      return 0;
+    case 1:
+      return 40;
+    case 2:
+      return 100;
+    case 3:
+      return 300;
+    case 4:
+      return 1200;
+    default:
+      throw new Error(`unexpected completed row count ${completedRowCount}`);
+  }
+}
