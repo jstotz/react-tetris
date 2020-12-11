@@ -12,6 +12,7 @@ function Game(): ReactElement {
     gameState: { gameOver, paused, piece, baseBoard, score },
     resetSavedGameState,
     saveGameState,
+    reset,
   } = useGame();
 
   const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
@@ -27,19 +28,20 @@ function Game(): ReactElement {
             {nextThemeId === "dark" ? "Dark Mode" : "Light Mode"}
           </button>
           <button onClick={saveGameState}>Save Game State</button>
-          <button
-            onClick={() => {
-              resetSavedGameState();
-              window.location.reload();
-            }}
-          >
-            Reset Game State
-          </button>
+          <button onClick={resetSavedGameState}>Reset Game State</button>
           <div>{paused ? "Paused" : "Press P to pause"}</div>
           <div>
             <strong>Score:</strong> {score}
           </div>
-          <div>{gameOver ? "GAME OVER, MAN! GAME OVER!" : ""}</div>
+          <div>
+            {gameOver ? (
+              <>
+                Game Over <button onClick={reset}>New Game</button>
+              </>
+            ) : (
+              ""
+            )}
+          </div>
         </div>
         <div style={{ height: "95%" }}>
           <Board board={board} />

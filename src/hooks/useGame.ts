@@ -35,6 +35,7 @@ interface UseGameReturnValues {
   gameState: GameState;
   resetSavedGameState: () => void;
   saveGameState: () => void;
+  reset: () => void;
 }
 
 // TODO: Refactor to avoid hard coded value
@@ -158,5 +159,7 @@ export default function useGame(): UseGameReturnValues {
   useHotkey(window, "r", resetSavedGameState);
   useInterval(() => dispatch({ type: "tick" }), DROP_INTERVAL);
 
-  return { gameState, saveGameState, resetSavedGameState };
+  const reset = () => dispatch({ type: "reset" });
+
+  return { gameState, saveGameState, resetSavedGameState, reset };
 }
