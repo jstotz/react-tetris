@@ -6,5 +6,4 @@ A mostly working experimental implementation of Tetris using
 ## TODO
 
 * Next Piece Preview
-* Scoring
 * Sound
