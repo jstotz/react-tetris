@@ -1,5 +1,7 @@
 import { useHotkey } from "@react-hook/hotkey";
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
+import useSound from "use-sound";
+import scoreSfx from "../assets/score.mp3";
 import {
   BoardData,
   calculateScore,
@@ -136,12 +138,19 @@ function reducer(state: GameState, action: Action): GameState {
 }
 
 export default function useGame(): UseGameReturnValues {
+  const [playScoreSound] = useSound(scoreSfx);
+
   const [initialGameState, setSavedGameState] = useLocalStorage(
     "gameState",
     newGameState(BOARD_WIDTH, BOARD_HEIGHT)
   );
 
   const [gameState, dispatch] = useReducer(reducer, initialGameState);
+  const { score } = gameState;
+
+  useEffect(() => {
+    playScoreSound();
+  }, [playScoreSound, score]);
 
   const saveGameState = () => setSavedGameState(gameState);
   const resetSavedGameState = () => {
