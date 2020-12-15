@@ -8,12 +8,7 @@ import Board from "./Board";
 function Game(): ReactElement {
   const [theme, setTheme] = useTheme();
 
-  const {
-    gameState: { gameOver, paused, piece, baseBoard, score },
-    resetSavedGameState,
-    saveGameState,
-    reset,
-  } = useGame();
+  const [{ gameOver, paused, piece, baseBoard, score }, dispatch] = useGame();
 
   const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
   const board = renderPiece(pieceDropPreview, renderPiece(piece, baseBoard));
@@ -27,8 +22,15 @@ function Game(): ReactElement {
           <button onClick={() => setTheme(nextThemeId)}>
             {nextThemeId === "dark" ? "Dark Mode" : "Light Mode"}
           </button>
-          <button onClick={saveGameState}>Save Game State</button>
-          <button onClick={resetSavedGameState}>Reset Game State</button>
+          <button onClick={() => dispatch({ type: "save" })}>
+            Save Game State
+          </button>
+          <button onClick={() => dispatch({ type: "restoreSaved" })}>
+            Restore Saved Game State
+          </button>
+          <button onClick={() => dispatch({ type: "clearSaved" })}>
+            Clear Saved Game State
+          </button>
           <div>{paused ? "Paused" : "Press P to pause"}</div>
           <div>
             <strong>Score:</strong> {score}
@@ -36,7 +38,10 @@ function Game(): ReactElement {
           <div>
             {gameOver ? (
               <>
-                Game Over <button onClick={reset}>New Game</button>
+                Game Over{" "}
+                <button onClick={() => dispatch({ type: "reset" })}>
+                  New Game
+                </button>
               </>
             ) : (
               ""

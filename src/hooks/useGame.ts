@@ -1,7 +1,10 @@
 import { useHotkey } from "@react-hook/hotkey";
-import { useEffect, useReducer } from "react";
-import useSound from "use-sound";
-import scoreSfx from "../assets/score.mp3";
+import {
+  EffectReducer,
+  EffectReducerExec,
+  EffectsMap,
+  useEffectReducer,
+} from "use-effect-reducer";
 import {
   BoardData,
   calculateScore,
@@ -19,6 +22,7 @@ import {
 } from "../lib/core";
 import { useInterval } from "./useInterval";
 import { useLocalStorage } from "./useLocalStorage";
+import useSounds, { SoundKey } from "./useSounds";
 
 const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
@@ -33,17 +37,13 @@ interface GameState {
   score: number;
 }
 
-interface UseGameReturnValues {
-  gameState: GameState;
-  resetSavedGameState: () => void;
-  saveGameState: () => void;
-  reset: () => void;
-}
-
 // TODO: Refactor to avoid hard coded value
 const makeRandomPieceCentered = () => makeRandomPiece({ x: 4 });
 
-function tick(state: GameState): GameState {
+function tick(
+  state: GameState,
+  exec: EffectReducerExec<GameState, Action, Effect>
+): GameState {
   if (!canMovePiece(state)) {
     return state;
   }
@@ -63,6 +63,13 @@ function tick(state: GameState): GameState {
     renderPiece(state.piece, baseBoard)
   );
   baseBoard = board;
+
+  if (completedRowCount === 4) {
+    exec({ type: "playSound", sound: "tetris" });
+  } else if (completedRowCount > 0) {
+    exec({ type: "playSound", sound: "linesCleared" });
+  }
+
   state.score += calculateScore(completedRowCount);
 
   // If the next piece can't be placed, the game is over
@@ -95,16 +102,6 @@ const movePieceIfValid = (
   return { ...state, piece: newPiece };
 };
 
-type Action =
-  | { type: "tick" }
-  | { type: "reset" }
-  | { type: "rotate" }
-  | { type: "moveLeft" }
-  | { type: "moveRight" }
-  | { type: "moveDown" }
-  | { type: "hardDrop" }
-  | { type: "togglePaused" };
-
 function newGameState(boardWidth: number, boardHeight: number): GameState {
   return {
     piece: makeRandomPieceCentered(),
@@ -116,10 +113,38 @@ function newGameState(boardWidth: number, boardHeight: number): GameState {
   };
 }
 
-function reducer(state: GameState, action: Action): GameState {
+type Action =
+  | { type: "tick" }
+  | { type: "reset" }
+  | { type: "rotate" }
+  | { type: "moveLeft" }
+  | { type: "moveRight" }
+  | { type: "moveDown" }
+  | { type: "hardDrop" }
+  | { type: "togglePaused" }
+  | { type: "save" }
+  | { type: "restoreSaved" }
+  | { type: "load"; state: GameState }
+  | { type: "clearSaved" };
+
+type Effect =
+  | { type: "save"; state: GameState | null }
+  | { type: "restoreSaved" }
+  | { type: "playSound"; sound: SoundKey };
+
+const reducer: EffectReducer<GameState, Action, Effect> = function reducer(
+  state,
+  action,
+  exec
+): GameState {
   switch (action.type) {
     case "tick":
-      return tick(state);
+      return tick(state, exec);
+    case "load":
+      return action.state;
+    case "restoreSaved":
+      exec({ type: "restoreSaved" });
+      return state;
     case "reset":
       return newGameState(state.baseBoard.width, state.baseBoard.height);
     case "rotate":
@@ -131,32 +156,38 @@ function reducer(state: GameState, action: Action): GameState {
     case "moveDown":
       return movePieceIfValid(state, movePieceDown);
     case "hardDrop":
-      return tick(movePieceIfValid(state, movePieceToBottom));
+      return tick(movePieceIfValid(state, movePieceToBottom), exec);
     case "togglePaused":
       return { ...state, paused: !state.paused };
+    case "save":
+      exec({ type: "save", state: state });
+      return state;
+    case "clearSaved":
+      exec({ type: "save", state: null });
+      return newGameState(state.baseBoard.width, state.baseBoard.height);
   }
-}
+};
 
-export default function useGame(): UseGameReturnValues {
-  const [playScoreSound] = useSound(scoreSfx);
+export default function useGame(): [GameState, (action: Action) => void] {
+  const sounds = useSounds();
 
   const [initialGameState, setSavedGameState] = useLocalStorage(
     "gameState",
     newGameState(BOARD_WIDTH, BOARD_HEIGHT)
   );
 
-  const [gameState, dispatch] = useReducer(reducer, initialGameState);
-  const { score } = gameState;
-
-  useEffect(() => {
-    playScoreSound();
-  }, [playScoreSound, score]);
-
-  const saveGameState = () => setSavedGameState(gameState);
-  const resetSavedGameState = () => {
-    setSavedGameState(null);
-    dispatch({ type: "reset" });
+  const effectsMap: EffectsMap<GameState, Action, Effect> = {
+    playSound: (_, { sound }) => sounds[sound].play(),
+    save: (_, { state }) => setSavedGameState(state),
+    restoreSaved: (_, __, _dispatch) =>
+      _dispatch({ type: "load", state: initialGameState }),
   };
+
+  const [gameState, dispatch] = useEffectReducer(
+    reducer,
+    initialGameState,
+    effectsMap
+  );
 
   useHotkey(window, "up", () => dispatch({ type: "rotate" }));
   useHotkey(window, "down", () => dispatch({ type: "moveDown" }));
@@ -164,11 +195,9 @@ export default function useGame(): UseGameReturnValues {
   useHotkey(window, "right", () => dispatch({ type: "moveRight" }));
   useHotkey(window, "space", () => dispatch({ type: "hardDrop" }));
   useHotkey(window, "p", () => dispatch({ type: "togglePaused" }));
-  useHotkey(window, "s", saveGameState);
-  useHotkey(window, "r", resetSavedGameState);
+  useHotkey(window, "s", () => dispatch({ type: "save" }));
+  useHotkey(window, "r", () => dispatch({ type: "clearSaved" }));
   useInterval(() => dispatch({ type: "tick" }), DROP_INTERVAL);
 
-  const reset = () => dispatch({ type: "reset" });
-
-  return { gameState, saveGameState, resetSavedGameState, reset };
+  return [gameState, dispatch];
 }
