@@ -43,36 +43,46 @@ export interface Config {
   boardHeight: number;
 }
 
-export interface State extends GameState {
+export interface State {
+  game: GameState;
   config: Config;
   themeId: ThemeId;
   settingsOpen: boolean;
 }
 
+export interface UseGameReturnedData extends State, GameState {
+  theme: Theme;
+}
+
+export type UseGameReturnedValue = [
+  UseGameReturnedData,
+  React.Dispatch<Action>
+];
+
 // TODO: Refactor to avoid hard coded value
 const makeRandomPieceCentered = () => makeRandomPiece({ x: 4 });
 
 function tick(
-  state: State,
+  game: GameState,
   exec: EffectReducerExec<State, Action, Effect>
-): State {
-  if (!canMovePiece(state)) {
-    return state;
+): GameState {
+  if (!canMovePiece(game)) {
+    return game;
   }
 
-  let { baseBoard } = state;
+  let { baseBoard } = game;
 
   // Attempt to move the current piece down
-  let piece = movePieceDown(state.piece);
+  let piece = movePieceDown(game.piece);
   if (piecePositionValid(piece, baseBoard)) {
-    return { ...state, piece };
+    return { ...game, piece };
   }
 
   // Couldn't move existing piece down so freeze it, clear any completed rows
   // and attempt to add a new piece
-  piece = state.nextPiece;
+  piece = game.nextPiece;
   let { board, completedRowCount } = removeCompletedRows(
-    renderPiece(state.piece, baseBoard)
+    renderPiece(game.piece, baseBoard)
   );
   baseBoard = board;
 
@@ -82,15 +92,15 @@ function tick(
     exec({ type: "playSound", soundId: "linesCleared" });
   }
 
-  state.score += calculateScore(completedRowCount);
+  game.score += calculateScore(completedRowCount);
 
   // If the next piece can't be placed, the game is over
   if (!piecePositionValid(piece, baseBoard)) {
-    return { ...state, piece, baseBoard, gameOver: true };
+    return { ...game, piece, baseBoard, gameOver: true };
   }
 
   return {
-    ...state,
+    ...game,
     piece,
     nextPiece: makeRandomPieceCentered(),
     baseBoard: baseBoard,
@@ -101,9 +111,9 @@ const canMovePiece = (state: GameState): boolean =>
   !state.paused && !state.gameOver;
 
 const movePieceIfValid = (
-  state: State,
+  state: GameState,
   moveFn: (piece: Piece, board: BoardData) => Piece
-): State => {
+): GameState => {
   if (!canMovePiece(state)) {
     return state;
   }
@@ -127,16 +137,16 @@ export function newGameState(config: Config): GameState {
 
 export function newState(config: Config): State {
   return {
-    ...newGameState(config),
+    game: newGameState(config),
     config: config,
     themeId: "light",
     settingsOpen: false,
   };
 }
 
-export function newGameData(config: Config = newConfig()): GameData {
+export function newGameData(config: Config = newConfig()): UseGameReturnedData {
   const state = newState(config);
-  return { ...state, theme: THEMES[state.themeId] };
+  return { ...state, ...state.game, theme: THEMES[state.themeId] };
 }
 
 export function newConfig(
@@ -155,18 +165,18 @@ export type Action =
   | { type: "moveDown" }
   | { type: "hardDrop" }
   | { type: "togglePaused" }
-  | { type: "save" }
-  | { type: "restoreSaved" }
-  | { type: "load"; state: GameState }
-  | { type: "clearSaved" }
+  | { type: "saveGame" }
+  | { type: "loadGame"; game: GameState }
+  | { type: "restoreSavedGame" }
+  | { type: "clearSavedGame" }
   | { type: "setTheme"; themeId: ThemeId }
   | { type: "openSettings" }
   | { type: "closeSettings" };
 
 export type Effect =
-  | { type: "saveGameState"; state: GameState | null }
+  | { type: "saveGame"; game: GameState | null }
   | { type: "saveTheme"; themeId: ThemeId | null }
-  | { type: "restoreSaved" }
+  | { type: "restoreSavedGame" }
   | { type: "playSound"; soundId: SoundId };
 
 const reducer: EffectReducer<State, Action, Effect> = (
@@ -176,53 +186,52 @@ const reducer: EffectReducer<State, Action, Effect> = (
 ): State => {
   switch (action.type) {
     case "tick":
-      return tick(state, exec);
-    case "load":
-      return { ...state, ...action.state };
-    case "restoreSaved":
-      exec({ type: "restoreSaved" });
+      return { ...state, game: tick(state.game, exec) };
+    case "loadGame":
+      return { ...state, game: action.game };
+    case "restoreSavedGame":
+      exec({ type: "restoreSavedGame" });
       return state;
     case "reset":
       return {
         ...state,
-        ...newGameState(state.config),
+        game: newGameState(state.config),
       };
     case "rotate":
-      return movePieceIfValid(state, rotatePiece);
+      return { ...state, game: movePieceIfValid(state.game, rotatePiece) };
     case "moveLeft":
-      return movePieceIfValid(state, movePieceLeft);
+      return { ...state, game: movePieceIfValid(state.game, movePieceLeft) };
     case "moveRight":
-      return movePieceIfValid(state, movePieceRight);
+      return { ...state, game: movePieceIfValid(state.game, movePieceRight) };
     case "moveDown":
-      return movePieceIfValid(state, movePieceDown);
+      return { ...state, game: movePieceIfValid(state.game, movePieceDown) };
     case "hardDrop":
-      return tick(movePieceIfValid(state, movePieceToBottom), exec);
+      return {
+        ...state,
+        game: tick(movePieceIfValid(state.game, movePieceToBottom), exec),
+      };
     case "togglePaused":
-      return { ...state, paused: !state.paused };
+      return { ...state, game: { ...state.game, paused: !state.game.paused } };
     case "openSettings":
       return { ...state, settingsOpen: true };
     case "closeSettings":
       return { ...state, settingsOpen: false };
-    case "save":
-      exec({ type: "saveGameState", state: state });
+    case "saveGame":
+      exec({ type: "saveGame", game: state.game });
       return state;
     case "setTheme":
       exec({ type: "saveTheme", themeId: action.themeId });
       return { ...state, themeId: action.themeId };
-    case "clearSaved":
-      exec({ type: "saveGameState", state: null });
+    case "clearSavedGame":
+      exec({ type: "saveGame", game: null });
       return {
         ...state,
-        ...newGameState(state.config),
+        game: newGameState(state.config),
       };
   }
 };
 
-export interface GameData extends State {
-  theme: Theme;
-}
-
-export default function useGame(): [GameData, React.Dispatch<Action>] {
+export default function useGame(): UseGameReturnedValue {
   const sounds = useSounds();
 
   const config = newConfig();
@@ -237,17 +246,17 @@ export default function useGame(): [GameData, React.Dispatch<Action>] {
     "light"
   );
 
-  const effectsMap: EffectsMap<GameState, Action, Effect> = {
+  const effectsMap: EffectsMap<State, Action, Effect> = {
     playSound: (_, { soundId: sound }) => sounds[sound].play(),
-    saveGameState: (_, { state }) => saveGameState(state),
+    saveGame: (_, { game }) => saveGameState(game),
     saveTheme: (_, { themeId }) => saveTheme(themeId),
-    restoreSaved: (_, __, _dispatch) =>
-      _dispatch({ type: "load", state: initialGameState }),
+    restoreSavedGame: (_, __, _dispatch) =>
+      _dispatch({ type: "loadGame", game: initialGameState }),
   };
 
   const [state, dispatch] = useEffectReducer<State, Action, Effect>(
     reducer,
-    { ...newState(config), ...initialGameState, themeId: initialThemeId },
+    { ...newState(config), game: initialGameState, themeId: initialThemeId },
     effectsMap
   );
 
@@ -257,9 +266,9 @@ export default function useGame(): [GameData, React.Dispatch<Action>] {
   useHotkey(window, "right", () => dispatch({ type: "moveRight" }));
   useHotkey(window, "space", () => dispatch({ type: "hardDrop" }));
   useHotkey(window, "p", () => dispatch({ type: "togglePaused" }));
-  useHotkey(window, "s", () => dispatch({ type: "save" }));
-  useHotkey(window, "r", () => dispatch({ type: "clearSaved" }));
+  useHotkey(window, "s", () => dispatch({ type: "saveGame" }));
+  useHotkey(window, "r", () => dispatch({ type: "clearSavedGame" }));
   useInterval(() => dispatch({ type: "tick" }), DROP_INTERVAL);
 
-  return [{ ...state, theme: THEMES[state.themeId] }, dispatch];
+  return [{ ...state, ...state.game, theme: THEMES[state.themeId] }, dispatch];
 }

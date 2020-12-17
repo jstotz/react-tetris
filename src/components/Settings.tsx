@@ -19,27 +19,27 @@ export default function Settings() {
       </button>
       <button
         onClick={() => {
-          dispatch({ type: "save" });
+          dispatch({ type: "saveGame" });
           dispatch({ type: "closeSettings" });
         }}
       >
-        Save Game State
+        Save Game
       </button>
       <button
         onClick={() => {
-          dispatch({ type: "restoreSaved" });
+          dispatch({ type: "restoreSavedGame" });
           dispatch({ type: "closeSettings" });
         }}
       >
-        Restore Saved Game State
+        Restore Saved Game
       </button>
       <button
         onClick={() => {
-          dispatch({ type: "clearSaved" });
+          dispatch({ type: "clearSavedGame" });
           dispatch({ type: "closeSettings" });
         }}
       >
-        Clear Saved Game State
+        Clear Saved Game
       </button>
     </>
   );
