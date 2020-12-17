@@ -38,7 +38,13 @@ export interface GameState {
   score: number;
 }
 
+export interface Config {
+  boardWidth: number;
+  boardHeight: number;
+}
+
 export interface State extends GameState {
+  config: Config;
   themeId: ThemeId;
   settingsOpen: boolean;
 }
@@ -108,37 +114,36 @@ const movePieceIfValid = (
   return { ...state, piece: newPiece };
 };
 
-export function newGameState(
-  boardWidth: number = BOARD_WIDTH,
-  boardHeight: number = BOARD_HEIGHT
-): GameState {
+export function newGameState(config: Config): GameState {
   return {
     piece: makeRandomPieceCentered(),
     nextPiece: makeRandomPieceCentered(),
     gameOver: false,
     paused: false,
-    baseBoard: makeEmptyBoard(boardWidth, boardHeight),
+    baseBoard: makeEmptyBoard(config.boardWidth, config.boardHeight),
     score: 0,
   };
 }
 
-export function newState(
-  boardWidth: number = BOARD_WIDTH,
-  boardHeight: number = BOARD_HEIGHT
-): State {
+export function newState(config: Config): State {
   return {
-    ...newGameState(boardWidth, boardHeight),
+    ...newGameState(config),
+    config: config,
     themeId: "light",
     settingsOpen: false,
   };
 }
 
-export function newGameData(
+export function newGameData(config: Config = newConfig()): GameData {
+  const state = newState(config);
+  return { ...state, theme: THEMES[state.themeId] };
+}
+
+export function newConfig(
   boardWidth: number = BOARD_WIDTH,
   boardHeight: number = BOARD_HEIGHT
-): GameData {
-  const state = newState(boardWidth, boardHeight);
-  return { ...state, theme: THEMES[state.themeId] };
+): Config {
+  return { boardWidth, boardHeight };
 }
 
 export type Action =
@@ -180,7 +185,7 @@ const reducer: EffectReducer<State, Action, Effect> = (
     case "reset":
       return {
         ...state,
-        ...newGameState(state.baseBoard.width, state.baseBoard.height),
+        ...newGameState(state.config),
       };
     case "rotate":
       return movePieceIfValid(state, rotatePiece);
@@ -208,7 +213,7 @@ const reducer: EffectReducer<State, Action, Effect> = (
       exec({ type: "saveGameState", state: null });
       return {
         ...state,
-        ...newGameState(state.baseBoard.width, state.baseBoard.height),
+        ...newGameState(state.config),
       };
   }
 };
@@ -220,9 +225,11 @@ export interface GameData extends State {
 export default function useGame(): [GameData, React.Dispatch<Action>] {
   const sounds = useSounds();
 
+  const config = newConfig();
+
   const [initialGameState, saveGameState] = useLocalStorage<GameState>(
     "gameState",
-    newGameState(BOARD_WIDTH, BOARD_HEIGHT)
+    newGameState(config)
   );
 
   const [initialThemeId, saveTheme] = useLocalStorage<ThemeId>(
@@ -240,7 +247,7 @@ export default function useGame(): [GameData, React.Dispatch<Action>] {
 
   const [state, dispatch] = useEffectReducer<State, Action, Effect>(
     reducer,
-    { ...newState(), ...initialGameState, themeId: initialThemeId },
+    { ...newState(config), ...initialGameState, themeId: initialThemeId },
     effectsMap
   );
 
