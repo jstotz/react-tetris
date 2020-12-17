@@ -1,40 +1,38 @@
 import React, { ReactElement } from "react";
+import Modal from "react-modal";
+import { GameContext } from "../GameContext";
 import useGame from "../hooks/useGame";
-import useTheme from "../hooks/useTheme";
 import { makePieceDropPreview, renderPiece } from "../lib/core";
-import { ThemeContext, THEMES } from "../ThemeContext";
 import Board from "./Board";
+import Settings from "./Settings";
 
 function Game(): ReactElement {
-  const [theme, setTheme] = useTheme();
-
-  const [{ gameOver, paused, piece, baseBoard, score }, dispatch] = useGame();
+  const [data, dispatch] = useGame();
+  const { gameOver, paused, piece, baseBoard, score, settingsOpen } = data;
 
   const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
   const board = renderPiece(pieceDropPreview, renderPiece(piece, baseBoard));
 
-  const nextThemeId = theme === THEMES.dark ? "light" : "dark";
-
   return (
-    <ThemeContext.Provider value={theme}>
+    <GameContext.Provider value={[data, dispatch]}>
       <>
         <div style={{ height: "5%" }}>
-          <button onClick={() => setTheme(nextThemeId)}>
-            {nextThemeId === "dark" ? "Dark Mode" : "Light Mode"}
-          </button>
-          <button onClick={() => dispatch({ type: "save" })}>
-            Save Game State
-          </button>
-          <button onClick={() => dispatch({ type: "restoreSaved" })}>
-            Restore Saved Game State
-          </button>
-          <button onClick={() => dispatch({ type: "clearSaved" })}>
-            Clear Saved Game State
-          </button>
-          <div>{paused ? "Paused" : "Press P to pause"}</div>
+          <div>
+            {paused ? "Paused" : "Press P to pause"}
+            <button onClick={() => dispatch({ type: "openSettings" })}>
+              Settings
+            </button>
+          </div>
           <div>
             <strong>Score:</strong> {score}
           </div>
+          <Modal
+            isOpen={settingsOpen}
+            contentLabel="Settings"
+            onRequestClose={() => dispatch({ type: "closeSettings" })}
+          >
+            <Settings />
+          </Modal>
           <div>
             {gameOver ? (
               <>
@@ -52,7 +50,7 @@ function Game(): ReactElement {
           <Board board={board} />
         </div>
       </>
-    </ThemeContext.Provider>
+    </GameContext.Provider>
   );
 }
 

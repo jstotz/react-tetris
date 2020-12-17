@@ -8,7 +8,7 @@ export interface Sound {
   data: ExposedData;
 }
 
-export type SoundKey = keyof ReturnType<typeof useSounds>;
+export type SoundId = keyof ReturnType<typeof useSounds>;
 
 export default function useSounds() {
   const useSoundWrapped = (url: string): Sound => {

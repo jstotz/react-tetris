@@ -20,15 +20,16 @@ import {
   renderPiece,
   rotatePiece,
 } from "../lib/core";
+import THEMES, { Theme, ThemeId } from "../themes";
 import { useInterval } from "./useInterval";
 import { useLocalStorage } from "./useLocalStorage";
-import useSounds, { SoundKey } from "./useSounds";
+import useSounds, { SoundId } from "./useSounds";
 
 const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
 const DROP_INTERVAL = 800; // ms
 
-interface GameState {
+export interface GameState {
   piece: Piece;
   nextPiece: Piece;
   paused: boolean;
@@ -37,13 +38,18 @@ interface GameState {
   score: number;
 }
 
+export interface State extends GameState {
+  themeId: ThemeId;
+  settingsOpen: boolean;
+}
+
 // TODO: Refactor to avoid hard coded value
 const makeRandomPieceCentered = () => makeRandomPiece({ x: 4 });
 
 function tick(
-  state: GameState,
-  exec: EffectReducerExec<GameState, Action, Effect>
-): GameState {
+  state: State,
+  exec: EffectReducerExec<State, Action, Effect>
+): State {
   if (!canMovePiece(state)) {
     return state;
   }
@@ -65,9 +71,9 @@ function tick(
   baseBoard = board;
 
   if (completedRowCount === 4) {
-    exec({ type: "playSound", sound: "tetris" });
+    exec({ type: "playSound", soundId: "tetris" });
   } else if (completedRowCount > 0) {
-    exec({ type: "playSound", sound: "linesCleared" });
+    exec({ type: "playSound", soundId: "linesCleared" });
   }
 
   state.score += calculateScore(completedRowCount);
@@ -89,9 +95,9 @@ const canMovePiece = (state: GameState): boolean =>
   !state.paused && !state.gameOver;
 
 const movePieceIfValid = (
-  state: GameState,
+  state: State,
   moveFn: (piece: Piece, board: BoardData) => Piece
-): GameState => {
+): State => {
   if (!canMovePiece(state)) {
     return state;
   }
@@ -102,7 +108,10 @@ const movePieceIfValid = (
   return { ...state, piece: newPiece };
 };
 
-function newGameState(boardWidth: number, boardHeight: number): GameState {
+export function newGameState(
+  boardWidth: number = BOARD_WIDTH,
+  boardHeight: number = BOARD_HEIGHT
+): GameState {
   return {
     piece: makeRandomPieceCentered(),
     nextPiece: makeRandomPieceCentered(),
@@ -113,7 +122,26 @@ function newGameState(boardWidth: number, boardHeight: number): GameState {
   };
 }
 
-type Action =
+export function newState(
+  boardWidth: number = BOARD_WIDTH,
+  boardHeight: number = BOARD_HEIGHT
+): State {
+  return {
+    ...newGameState(boardWidth, boardHeight),
+    themeId: "light",
+    settingsOpen: false,
+  };
+}
+
+export function newGameData(
+  boardWidth: number = BOARD_WIDTH,
+  boardHeight: number = BOARD_HEIGHT
+): GameData {
+  const state = newState(boardWidth, boardHeight);
+  return { ...state, theme: THEMES[state.themeId] };
+}
+
+export type Action =
   | { type: "tick" }
   | { type: "reset" }
   | { type: "rotate" }
@@ -125,28 +153,35 @@ type Action =
   | { type: "save" }
   | { type: "restoreSaved" }
   | { type: "load"; state: GameState }
-  | { type: "clearSaved" };
+  | { type: "clearSaved" }
+  | { type: "setTheme"; themeId: ThemeId }
+  | { type: "openSettings" }
+  | { type: "closeSettings" };
 
-type Effect =
-  | { type: "save"; state: GameState | null }
+export type Effect =
+  | { type: "saveGameState"; state: GameState | null }
+  | { type: "saveTheme"; themeId: ThemeId | null }
   | { type: "restoreSaved" }
-  | { type: "playSound"; sound: SoundKey };
+  | { type: "playSound"; soundId: SoundId };
 
-const reducer: EffectReducer<GameState, Action, Effect> = function reducer(
+const reducer: EffectReducer<State, Action, Effect> = (
   state,
   action,
   exec
-): GameState {
+): State => {
   switch (action.type) {
     case "tick":
       return tick(state, exec);
     case "load":
-      return action.state;
+      return { ...state, ...action.state };
     case "restoreSaved":
       exec({ type: "restoreSaved" });
       return state;
     case "reset":
-      return newGameState(state.baseBoard.width, state.baseBoard.height);
+      return {
+        ...state,
+        ...newGameState(state.baseBoard.width, state.baseBoard.height),
+      };
     case "rotate":
       return movePieceIfValid(state, rotatePiece);
     case "moveLeft":
@@ -159,33 +194,53 @@ const reducer: EffectReducer<GameState, Action, Effect> = function reducer(
       return tick(movePieceIfValid(state, movePieceToBottom), exec);
     case "togglePaused":
       return { ...state, paused: !state.paused };
+    case "openSettings":
+      return { ...state, settingsOpen: true };
+    case "closeSettings":
+      return { ...state, settingsOpen: false };
     case "save":
-      exec({ type: "save", state: state });
+      exec({ type: "saveGameState", state: state });
       return state;
+    case "setTheme":
+      exec({ type: "saveTheme", themeId: action.themeId });
+      return { ...state, themeId: action.themeId };
     case "clearSaved":
-      exec({ type: "save", state: null });
-      return newGameState(state.baseBoard.width, state.baseBoard.height);
+      exec({ type: "saveGameState", state: null });
+      return {
+        ...state,
+        ...newGameState(state.baseBoard.width, state.baseBoard.height),
+      };
   }
 };
 
-export default function useGame(): [GameState, (action: Action) => void] {
+export interface GameData extends State {
+  theme: Theme;
+}
+
+export default function useGame(): [GameData, React.Dispatch<Action>] {
   const sounds = useSounds();
 
-  const [initialGameState, setSavedGameState] = useLocalStorage(
+  const [initialGameState, saveGameState] = useLocalStorage<GameState>(
     "gameState",
     newGameState(BOARD_WIDTH, BOARD_HEIGHT)
   );
 
+  const [initialThemeId, saveTheme] = useLocalStorage<ThemeId>(
+    "theme",
+    "light"
+  );
+
   const effectsMap: EffectsMap<GameState, Action, Effect> = {
-    playSound: (_, { sound }) => sounds[sound].play(),
-    save: (_, { state }) => setSavedGameState(state),
+    playSound: (_, { soundId: sound }) => sounds[sound].play(),
+    saveGameState: (_, { state }) => saveGameState(state),
+    saveTheme: (_, { themeId }) => saveTheme(themeId),
     restoreSaved: (_, __, _dispatch) =>
       _dispatch({ type: "load", state: initialGameState }),
   };
 
-  const [gameState, dispatch] = useEffectReducer(
+  const [state, dispatch] = useEffectReducer<State, Action, Effect>(
     reducer,
-    initialGameState,
+    { ...newState(), ...initialGameState, themeId: initialThemeId },
     effectsMap
   );
 
@@ -199,5 +254,5 @@ export default function useGame(): [GameState, (action: Action) => void] {
   useHotkey(window, "r", () => dispatch({ type: "clearSaved" }));
   useInterval(() => dispatch({ type: "tick" }), DROP_INTERVAL);
 
-  return [gameState, dispatch];
+  return [{ ...state, theme: THEMES[state.themeId] }, dispatch];
 }

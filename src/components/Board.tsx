@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
+import { GameContext } from "../GameContext";
 import { BoardData, Cell } from "../lib/core";
-import { Theme, ThemeContext } from "../ThemeContext";
+import { Theme } from "../themes";
 import styles from "./Board.module.css";
 
 function cellColor(cell: Cell, theme: Theme): string {
@@ -15,7 +16,7 @@ function cellColor(cell: Cell, theme: Theme): string {
 }
 
 const Board = ({ board }: { board: BoardData }) => {
-  const theme = useContext(ThemeContext);
+  const [{ theme }] = useContext(GameContext);
   const { grid } = board;
 
   return (

@@ -1,5 +1,4 @@
 import randomColor from "randomcolor";
-import { createContext } from "react";
 import { PieceShape } from "./lib/core";
 
 export type Theme = {
@@ -10,7 +9,7 @@ export type Theme = {
   };
 };
 
-export const THEMES: { [key: string]: Theme } = {
+const THEMES = {
   light: {
     emptyCellColor: "#eeeeee",
     previewColor: "#cccccc",
@@ -23,7 +22,7 @@ export const THEMES: { [key: string]: Theme } = {
       Z: randomColor({ luminosity: "bright" }),
       O: randomColor({ luminosity: "bright" }),
     },
-  },
+  } as Theme,
   dark: {
     emptyCellColor: "#333333",
     previewColor: "#555555",
@@ -36,7 +35,9 @@ export const THEMES: { [key: string]: Theme } = {
       Z: randomColor({ luminosity: "dark" }),
       O: randomColor({ luminosity: "dark" }),
     },
-  },
+  } as Theme,
 };
 
-export const ThemeContext = createContext(THEMES.light);
+export type ThemeId = keyof typeof THEMES;
+
+export default THEMES;
