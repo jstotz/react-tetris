@@ -65,6 +65,15 @@ export function makeRandomPiece(values: Partial<Piece> = {}): Piece {
   };
 }
 
+export function centerPiece(piece: Piece, boardWidth: number): Piece {
+  const x = Math.floor((boardWidth - piece.grid[0].length) / 2);
+  return { ...piece, x: x };
+}
+
+export function makeRandomPieceCentered(boardWidth: number): Piece {
+  return centerPiece(makeRandomPiece(), boardWidth);
+}
+
 export function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
   const previewPiece = { ...piece, color: "#ddd", preview: true };
   return movePieceToBottom(previewPiece, board);
@@ -143,8 +152,6 @@ export function renderPiece(piece: Piece, board: BoardData): BoardData {
         const y = piece.y + yOffset;
         if (boardPositionValid(x, y, board)) {
           newBoard.grid[y][x] = cell;
-        } else {
-          console.log("skipping invalid cell position", cell, x, y);
         }
       });
     });

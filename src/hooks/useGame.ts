@@ -1,4 +1,5 @@
 import { useHotkey } from "@react-hook/hotkey";
+import produce, { Draft } from "immer";
 import {
   EffectReducer,
   EffectReducerExec,
@@ -9,7 +10,7 @@ import {
   BoardData,
   calculateScore,
   makeEmptyBoard,
-  makeRandomPiece,
+  makeRandomPieceCentered,
   movePieceDown,
   movePieceLeft,
   movePieceRight,
@@ -60,74 +61,70 @@ export type UseGameReturnedValue = [
 ];
 
 // TODO: Refactor to avoid hard coded value
-const makeRandomPieceCentered = () => makeRandomPiece({ x: 4 });
-
 function tick(
-  game: GameState,
+  state: State,
+  draft: Draft<State>,
   exec: EffectReducerExec<State, Action, Effect>
-): GameState {
-  if (!canMovePiece(game)) {
-    return game;
-  }
+) {
+  const { game } = state;
 
-  let { baseBoard } = game;
+  // If game is over or paused, do nothing
+  if (!gameIsActive(state)) {
+    return;
+  }
 
   // Attempt to move the current piece down
-  let piece = movePieceDown(game.piece);
-  if (piecePositionValid(piece, baseBoard)) {
-    return { ...game, piece };
+  let newPiece = movePieceDown(game.piece);
+  if (piecePositionValid(newPiece, game.baseBoard)) {
+    draft.game.piece = newPiece;
+    return;
   }
 
-  // Couldn't move existing piece down so freeze it, clear any completed rows
-  // and attempt to add a new piece
-  piece = game.nextPiece;
+  // Couldn't move existing piece down so lock it into position
+  // and clear completed rows
   let { board, completedRowCount } = removeCompletedRows(
-    renderPiece(game.piece, baseBoard)
+    renderPiece(game.piece, game.baseBoard)
   );
-  baseBoard = board;
+  draft.game.baseBoard = board;
 
   if (completedRowCount === 4) {
     exec({ type: "playSound", soundId: "tetris" });
   } else if (completedRowCount > 0) {
     exec({ type: "playSound", soundId: "linesCleared" });
   }
+  draft.game.score += calculateScore(completedRowCount);
 
-  game.score += calculateScore(completedRowCount);
+  draft.game.piece = game.nextPiece;
+  draft.game.nextPiece = makeRandomPieceCentered(board.width);
+  draft.game.baseBoard = board;
 
-  // If the next piece can't be placed, the game is over
-  if (!piecePositionValid(piece, baseBoard)) {
-    return { ...game, piece, baseBoard, gameOver: true };
+  if (!piecePositionValid(game.nextPiece, board)) {
+    draft.game.gameOver = true;
   }
-
-  return {
-    ...game,
-    piece,
-    nextPiece: makeRandomPieceCentered(),
-    baseBoard: baseBoard,
-  };
 }
 
-const canMovePiece = (state: GameState): boolean =>
-  !state.paused && !state.gameOver;
+const gameIsActive = ({ game, settingsOpen }: State): boolean =>
+  !game.paused && !game.gameOver && !settingsOpen;
 
 const movePieceIfValid = (
-  state: GameState,
+  state: State,
+  draft: Draft<State>,
   moveFn: (piece: Piece, board: BoardData) => Piece
-): GameState => {
-  if (!canMovePiece(state)) {
-    return state;
+) => {
+  const { game } = state;
+  if (!gameIsActive(state)) {
+    return;
   }
-  const newPiece = moveFn(state.piece, state.baseBoard);
-  if (!piecePositionValid(newPiece, state.baseBoard)) {
-    return state;
+  const newPiece = moveFn(game.piece, game.baseBoard);
+  if (piecePositionValid(newPiece, game.baseBoard)) {
+    draft.game.piece = newPiece;
   }
-  return { ...state, piece: newPiece };
 };
 
 export function newGameState(config: Config): GameState {
   return {
-    piece: makeRandomPieceCentered(),
-    nextPiece: makeRandomPieceCentered(),
+    piece: makeRandomPieceCentered(config.boardWidth),
+    nextPiece: makeRandomPieceCentered(config.boardWidth),
     gameOver: false,
     paused: false,
     baseBoard: makeEmptyBoard(config.boardWidth, config.boardHeight),
@@ -156,14 +153,20 @@ export function newConfig(
   return { boardWidth, boardHeight };
 }
 
+const pieceMoves = {
+  left: movePieceLeft,
+  right: movePieceRight,
+  down: movePieceDown,
+  rotate: rotatePiece,
+  hardDrop: movePieceToBottom,
+};
+
+type PieceMove = keyof typeof pieceMoves;
+
 export type Action =
   | { type: "tick" }
   | { type: "reset" }
-  | { type: "rotate" }
-  | { type: "moveLeft" }
-  | { type: "moveRight" }
-  | { type: "moveDown" }
-  | { type: "hardDrop" }
+  | { type: "movePiece"; move: PieceMove }
   | { type: "togglePaused" }
   | { type: "saveGame" }
   | { type: "loadGame"; game: GameState }
@@ -184,56 +187,52 @@ const reducer: EffectReducer<State, Action, Effect> = (
   action,
   exec
 ): State => {
-  switch (action.type) {
-    case "tick":
-      return { ...state, game: tick(state.game, exec) };
-    case "loadGame":
-      return { ...state, game: action.game };
-    case "restoreSavedGame":
-      exec({ type: "restoreSavedGame" });
-      return state;
-    case "reset":
-      return {
-        ...state,
-        game: newGameState(state.config),
-      };
-    case "rotate":
-      return { ...state, game: movePieceIfValid(state.game, rotatePiece) };
-    case "moveLeft":
-      return { ...state, game: movePieceIfValid(state.game, movePieceLeft) };
-    case "moveRight":
-      return { ...state, game: movePieceIfValid(state.game, movePieceRight) };
-    case "moveDown":
-      return { ...state, game: movePieceIfValid(state.game, movePieceDown) };
-    case "hardDrop":
-      return {
-        ...state,
-        game: tick(movePieceIfValid(state.game, movePieceToBottom), exec),
-      };
-    case "togglePaused":
-      return { ...state, game: { ...state.game, paused: !state.game.paused } };
-    case "openSettings":
-      return { ...state, settingsOpen: true };
-    case "closeSettings":
-      return { ...state, settingsOpen: false };
-    case "saveGame":
-      exec({ type: "saveGame", game: state.game });
-      return state;
-    case "setTheme":
-      exec({ type: "saveTheme", themeId: action.themeId });
-      return { ...state, themeId: action.themeId };
-    case "clearSavedGame":
-      exec({ type: "saveGame", game: null });
-      return {
-        ...state,
-        game: newGameState(state.config),
-      };
-  }
+  return produce(state, (draft) => {
+    switch (action.type) {
+      case "tick":
+        tick(state, draft, exec);
+        break;
+      case "loadGame":
+        draft.game = action.game;
+        break;
+      case "restoreSavedGame":
+        exec({ type: "restoreSavedGame" });
+        break;
+      case "reset":
+        draft.game = newGameState(state.config);
+        break;
+      case "movePiece":
+        movePieceIfValid(state, draft, pieceMoves[action.move]);
+        if (action.move === "hardDrop") {
+          tick(draft, draft, exec);
+        }
+        break;
+      case "togglePaused":
+        draft.game.paused = true;
+        break;
+      case "openSettings":
+        draft.settingsOpen = true;
+        break;
+      case "closeSettings":
+        draft.settingsOpen = false;
+        break;
+      case "saveGame":
+        exec({ type: "saveGame", game: state.game });
+        break;
+      case "setTheme":
+        draft.themeId = action.themeId;
+        exec({ type: "saveTheme", themeId: action.themeId });
+        break;
+      case "clearSavedGame":
+        exec({ type: "saveGame", game: null });
+        draft.game = newGameState(state.config);
+        break;
+    }
+  });
 };
 
 export default function useGame(): UseGameReturnedValue {
   const sounds = useSounds();
-
   const config = newConfig();
 
   const [initialGameState, saveGameState] = useLocalStorage<GameState>(
@@ -260,11 +259,13 @@ export default function useGame(): UseGameReturnedValue {
     effectsMap
   );
 
-  useHotkey(window, "up", () => dispatch({ type: "rotate" }));
-  useHotkey(window, "down", () => dispatch({ type: "moveDown" }));
-  useHotkey(window, "left", () => dispatch({ type: "moveLeft" }));
-  useHotkey(window, "right", () => dispatch({ type: "moveRight" }));
-  useHotkey(window, "space", () => dispatch({ type: "hardDrop" }));
+  const movePiece = (move: PieceMove) => dispatch({ type: "movePiece", move });
+
+  useHotkey(window, "up", () => movePiece("rotate"));
+  useHotkey(window, "down", () => movePiece("down"));
+  useHotkey(window, "left", () => movePiece("left"));
+  useHotkey(window, "right", () => movePiece("right"));
+  useHotkey(window, "space", () => movePiece("hardDrop"));
   useHotkey(window, "p", () => dispatch({ type: "togglePaused" }));
   useHotkey(window, "s", () => dispatch({ type: "saveGame" }));
   useHotkey(window, "r", () => dispatch({ type: "clearSavedGame" }));
