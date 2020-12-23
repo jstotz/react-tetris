@@ -3,7 +3,9 @@ import Modal from "react-modal";
 import "./App.css";
 import Game from "./components/Game";
 
-Modal.setAppElement("#root");
+if (process.env.NODE_ENV !== "test") {
+  Modal.setAppElement("#root");
+}
 
 function App() {
   return <Game />;

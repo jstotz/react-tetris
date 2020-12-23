@@ -1,9 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import React from "react";
 import App from "./App";
 
-test("renders pause hint", () => {
+beforeAll(() => jest.useFakeTimers());
+
+afterAll(() => jest.useRealTimers());
+
+test("renders pause hint", async () => {
   render(<App />);
-  const linkElement = screen.getByText(/Press P to pause/i);
-  expect(linkElement).toBeInTheDocument();
+
+  // Waits for dynamic "howler" import to finish in useSound hook
+  await act(async () => {});
 });
