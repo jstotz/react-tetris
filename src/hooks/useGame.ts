@@ -6,6 +6,7 @@ import {
   EffectsMap,
   useEffectReducer,
 } from "use-effect-reducer";
+import useSound from "use-sound";
 import {
   BoardData,
   calculateScore,
@@ -21,10 +22,10 @@ import {
   renderPiece,
   rotatePiece,
 } from "../lib/core";
+import { SoundId, soundSpriteMap, soundSpriteUrl } from "../sounds/sprite";
 import THEMES, { Theme, ThemeId } from "../themes";
 import { useInterval } from "./useInterval";
 import { useLocalStorage } from "./useLocalStorage";
-import useSounds, { SoundId } from "./useSounds";
 
 const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
@@ -232,7 +233,6 @@ const reducer: EffectReducer<State, Action, Effect> = (
 };
 
 export default function useGame(): UseGameReturnedValue {
-  const sounds = useSounds();
   const config = newConfig();
 
   const [initialGameState, saveGameState] = useLocalStorage<GameState>(
@@ -246,7 +246,7 @@ export default function useGame(): UseGameReturnedValue {
   );
 
   const effectsMap: EffectsMap<State, Action, Effect> = {
-    playSound: (_, { soundId: sound }) => sounds[sound].play(),
+    playSound: (_, { soundId }) => playSound({ id: soundId }),
     saveGame: (_, { game }) => saveGameState(game),
     saveTheme: (_, { themeId }) => saveTheme(themeId),
     restoreSavedGame: (_, __, _dispatch) =>
@@ -258,6 +258,11 @@ export default function useGame(): UseGameReturnedValue {
     { ...newState(config), game: initialGameState, themeId: initialThemeId },
     effectsMap
   );
+
+  const [playSound] = useSound(soundSpriteUrl, {
+    soundEnabled: gameIsActive(state),
+    sprite: soundSpriteMap,
+  });
 
   const movePiece = (move: PieceMove) => dispatch({ type: "movePiece", move });
 

@@ -28,7 +28,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "gen:audiosprite": "ts-node -O '{\"module\":\"commonjs\"}' src/script/generate_audiosprite.ts"
   },
   "eslintConfig": {
     "extends": [
@@ -49,9 +50,13 @@
     ]
   },
   "devDependencies": {
+    "@types/audiosprite": "^0.6.0",
     "@types/lodash": "^4.14.165",
     "@types/randomcolor": "^0.5.5",
     "@types/react-modal": "^3.10.6",
-    "@types/styled-components": "^5.1.4"
+    "@types/styled-components": "^5.1.4",
+    "audiosprite": "^0.7.2",
+    "prettier": "^2.2.1",
+    "ts-node": "^9.1.1"
   }
 }
