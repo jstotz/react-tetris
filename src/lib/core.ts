@@ -111,14 +111,9 @@ export function boardPositionValid(
   y: number,
   board: BoardData
 ): boolean {
-  try {
-    return (
-      boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
-    );
-  } catch (e) {
-    debugger;
-    throw e;
-  }
+  return (
+    boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
+  );
 }
 
 export function piecePositionValid(piece: Piece, board: BoardData): boolean {
