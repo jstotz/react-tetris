@@ -208,7 +208,7 @@ const reducer: EffectReducer<State, Action, Effect> = (
         }
         break;
       case "togglePaused":
-        draft.game.paused = true;
+        draft.game.paused = !state.game.paused;
         break;
       case "openSettings":
         draft.settingsOpen = true;
