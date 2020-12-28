@@ -31,7 +31,7 @@ const BOARD_WIDTH = 10; // blocks
 const BOARD_HEIGHT = 20; // blocks
 const DROP_INTERVAL = 800; // ms
 
-export interface GameState {
+interface GameState {
   piece: Piece;
   nextPiece: Piece;
   paused: boolean;
@@ -40,19 +40,19 @@ export interface GameState {
   score: number;
 }
 
-export interface Config {
+interface Config {
   boardWidth: number;
   boardHeight: number;
 }
 
-export interface State {
+interface State {
   game: GameState;
   config: Config;
   themeId: ThemeId;
   settingsOpen: boolean;
 }
 
-export interface UseGameReturnedData extends State, GameState {
+interface UseGameReturnedData extends State, GameState {
   theme: Theme;
 }
 
@@ -122,7 +122,7 @@ const movePieceIfValid = (
   }
 };
 
-export function newGameState(config: Config): GameState {
+function newGameState(config: Config): GameState {
   return {
     piece: makeRandomPieceCentered(config.boardWidth),
     nextPiece: makeRandomPieceCentered(config.boardWidth),
@@ -133,7 +133,7 @@ export function newGameState(config: Config): GameState {
   };
 }
 
-export function newState(config: Config): State {
+function newState(config: Config): State {
   return {
     game: newGameState(config),
     config: config,
@@ -147,7 +147,7 @@ export function newGameData(config: Config = newConfig()): UseGameReturnedData {
   return { ...state, ...state.game, theme: THEMES[state.themeId] };
 }
 
-export function newConfig(
+function newConfig(
   boardWidth: number = BOARD_WIDTH,
   boardHeight: number = BOARD_HEIGHT
 ): Config {
@@ -164,7 +164,7 @@ const pieceMoves = {
 
 type PieceMove = keyof typeof pieceMoves;
 
-export type Action =
+type Action =
   | { type: "tick" }
   | { type: "reset" }
   | { type: "movePiece"; move: PieceMove }
@@ -177,7 +177,7 @@ export type Action =
   | { type: "openSettings" }
   | { type: "closeSettings" };
 
-export type Effect =
+type Effect =
   | { type: "saveGame"; game: GameState | null }
   | { type: "saveTheme"; themeId: ThemeId | null }
   | { type: "restoreSavedGame" }

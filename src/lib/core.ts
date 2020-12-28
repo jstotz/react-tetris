@@ -4,15 +4,15 @@ import PIECES from "./pieces";
 
 export type PieceShape = "J" | "T" | "L" | "I" | "S" | "Z" | "O";
 
-export type CellEmpty = {
+type CellEmpty = {
   type: "empty";
 };
 
-export type CellPreview = {
+type CellPreview = {
   type: "preview";
 };
 
-export type CellPiece = {
+type CellPiece = {
   type: "piece";
   shape: PieceShape;
 };
@@ -41,11 +41,11 @@ export const rotateGrid = (grid: Grid): Grid => {
   );
 };
 
-export function emptyRow(width: number): Cell[] {
+function emptyRow(width: number): Cell[] {
   return times(width, () => ({ type: "empty" }));
 }
 
-export function makeEmptyGrid(width: number, height: number): Grid {
+function makeEmptyGrid(width: number, height: number): Grid {
   return times(height, () => emptyRow(width));
 }
 
@@ -57,7 +57,7 @@ export function makeEmptyBoard(width: number, height: number): BoardData {
   };
 }
 
-export function makeRandomPiece(values: Partial<Piece> = {}): Piece {
+function makeRandomPiece(values: Partial<Piece> = {}): Piece {
   const basePiece = PIECES[random(0, PIECES.length - 1)];
   return {
     ...basePiece,
@@ -65,7 +65,7 @@ export function makeRandomPiece(values: Partial<Piece> = {}): Piece {
   };
 }
 
-export function centerPiece(piece: Piece, boardWidth: number): Piece {
+function centerPiece(piece: Piece, boardWidth: number): Piece {
   const x = Math.floor((boardWidth - piece.grid[0].length) / 2);
   return { ...piece, x: x };
 }
@@ -79,7 +79,7 @@ export function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
   return movePieceToBottom(previewPiece, board);
 }
 
-export function cellOccupied(cell: Cell): boolean {
+function cellOccupied(cell: Cell): boolean {
   return cell.type === "piece";
 }
 
@@ -98,7 +98,7 @@ export function removeCompletedRows(
   return { board: { ...board, grid: newGrid }, completedRowCount };
 }
 
-export function boardPositionWithinBounds(
+function boardPositionWithinBounds(
   x: number,
   y: number,
   board: BoardData
@@ -106,11 +106,7 @@ export function boardPositionWithinBounds(
   return x >= 0 && x < board.width && y >= 0 && y < board.height;
 }
 
-export function boardPositionValid(
-  x: number,
-  y: number,
-  board: BoardData
-): boolean {
+function boardPositionValid(x: number, y: number, board: BoardData): boolean {
   return (
     boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
   );

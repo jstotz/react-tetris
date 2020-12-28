@@ -2,7 +2,7 @@ import { Piece, rotateGrid } from "./core";
 import { gridToString } from "./debug";
 import { definePiece, I, J } from "./pieces";
 
-export type Block = 1 | 0;
+type Block = 1 | 0;
 
 function expectRotationSequence(piece: Piece, rotations: Block[][][]) {
   const pieces = rotations.map((definition) =>
