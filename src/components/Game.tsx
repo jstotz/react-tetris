@@ -1,5 +1,6 @@
-import React, { ReactElement } from "react";
+import React, { ReactElement, useMemo } from "react";
 import Modal from "react-modal";
+import { stylesheet } from "typestyle";
 import { GameContext } from "../GameContext";
 import useGame from "../hooks/useGame";
 import Board from "./Board";
@@ -9,10 +10,25 @@ function Game(): ReactElement {
   const [data, dispatch] = useGame();
   const { gameOver, paused, board, score, settingsOpen } = data;
 
+  const sheet = useMemo(
+    () =>
+      stylesheet({
+        topBar: {
+          height: "5%",
+          padding: "1em",
+        },
+        boardContainer: {
+          height: "95%",
+          padding: "1em",
+        },
+      }),
+    []
+  );
+
   return (
     <GameContext.Provider value={[data, dispatch]}>
       <>
-        <div style={{ height: "5%" }}>
+        <div className={sheet.topBar}>
           <div>
             {paused ? "Paused" : "Press P to pause"}
             <button onClick={() => dispatch({ type: "openSettings" })}>
@@ -42,7 +58,7 @@ function Game(): ReactElement {
             )}
           </div>
         </div>
-        <div style={{ height: "95%" }}>
+        <div className={sheet.boardContainer}>
           <Board board={board} />
         </div>
       </>
