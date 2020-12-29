@@ -17,7 +17,7 @@ type CellPiece = {
   shape: PieceShape;
 };
 
-export type Cell = CellEmpty | CellPreview | CellPiece;
+type Cell = CellEmpty | CellPreview | CellPiece;
 
 export type Grid = Cell[][];
 
@@ -74,7 +74,7 @@ export function makeRandomPieceCentered(boardWidth: number): Piece {
   return centerPiece(makeRandomPiece(), boardWidth);
 }
 
-export function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
+function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
   const previewPiece = { ...piece, color: "#ddd", preview: true };
   return movePieceToBottom(previewPiece, board);
 }
@@ -129,7 +129,7 @@ export function piecePositionValid(piece: Piece, board: BoardData): boolean {
   return true;
 }
 
-// Returns a copy of the given board with the piece rendered into it
+// Returns a copy of the board with the piece rendered into it
 export function renderPiece(piece: Piece, board: BoardData): BoardData {
   return produce(board, (newBoard) => {
     piece.grid.forEach((row, yOffset) => {
@@ -147,6 +147,18 @@ export function renderPiece(piece: Piece, board: BoardData): BoardData {
       });
     });
   });
+}
+
+// Returns a copy of the board with the piece and a piece drop preview
+// rendered into it
+export function renderPieceWithDropPreview(
+  piece: Piece,
+  board: BoardData
+): BoardData {
+  return renderPiece(
+    makePieceDropPreview(piece, board),
+    renderPiece(piece, board)
+  );
 }
 
 export const movePieceToBottom = (piece: Piece, board: BoardData) => {

@@ -20,6 +20,7 @@ import {
   piecePositionValid,
   removeCompletedRows,
   renderPiece,
+  renderPieceWithDropPreview,
   rotatePiece,
 } from "../lib/core";
 import { SoundId, soundSpriteMap, soundSpriteUrl } from "../sounds/sprite";
@@ -54,6 +55,7 @@ interface State {
 
 interface UseGameReturnedData extends State, GameState {
   theme: Theme;
+  board: BoardData;
 }
 
 export type UseGameReturnedValue = [
@@ -142,9 +144,16 @@ function newState(config: Config): State {
   };
 }
 
-export function newGameData(config: Config = newConfig()): UseGameReturnedData {
-  const state = newState(config);
-  return { ...state, ...state.game, theme: THEMES[state.themeId] };
+export function newGameData(
+  config: Config = newConfig(),
+  state: State = newState(config)
+): UseGameReturnedData {
+  return {
+    ...state,
+    ...state.game,
+    theme: THEMES[state.themeId],
+    board: renderPieceWithDropPreview(state.game.piece, state.game.baseBoard),
+  };
 }
 
 function newConfig(
@@ -276,5 +285,5 @@ export default function useGame(): UseGameReturnedValue {
   useHotkey(window, "r", () => dispatch({ type: "clearSavedGame" }));
   useInterval(() => dispatch({ type: "tick" }), DROP_INTERVAL);
 
-  return [{ ...state, ...state.game, theme: THEMES[state.themeId] }, dispatch];
+  return [newGameData(config, state), dispatch];
 }

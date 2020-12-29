@@ -2,16 +2,12 @@ import React, { ReactElement } from "react";
 import Modal from "react-modal";
 import { GameContext } from "../GameContext";
 import useGame from "../hooks/useGame";
-import { makePieceDropPreview, renderPiece } from "../lib/core";
 import Board from "./Board";
 import Settings from "./Settings";
 
 function Game(): ReactElement {
   const [data, dispatch] = useGame();
-  const { gameOver, paused, piece, baseBoard, score, settingsOpen } = data;
-
-  const pieceDropPreview = makePieceDropPreview(piece, baseBoard);
-  const board = renderPiece(pieceDropPreview, renderPiece(piece, baseBoard));
+  const { gameOver, paused, board, score, settingsOpen } = data;
 
   return (
     <GameContext.Provider value={[data, dispatch]}>
