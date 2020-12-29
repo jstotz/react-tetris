@@ -17,7 +17,7 @@ import {
   newEmptyBoard,
   newRandomPieceCentered,
   Piece,
-  piecePositionValid,
+  piecePositionIsValid,
   removeCompletedRows,
   renderPiece,
   renderPieceWithDropPreview,
@@ -78,7 +78,7 @@ function tick(
 
   // Attempt to move the current piece down
   let newPiece = movePieceDown(game.piece);
-  if (piecePositionValid(newPiece, game.baseBoard)) {
+  if (piecePositionIsValid(newPiece, game.baseBoard)) {
     draft.game.piece = newPiece;
     return;
   }
@@ -101,7 +101,7 @@ function tick(
   draft.game.nextPiece = newRandomPieceCentered(board.width);
   draft.game.baseBoard = board;
 
-  if (!piecePositionValid(game.nextPiece, board)) {
+  if (!piecePositionIsValid(game.nextPiece, board)) {
     draft.game.gameOver = true;
   }
 }
@@ -119,7 +119,7 @@ const movePieceIfValid = (
     return;
   }
   const newPiece = moveFn(game.piece, game.baseBoard);
-  if (piecePositionValid(newPiece, game.baseBoard)) {
+  if (piecePositionIsValid(newPiece, game.baseBoard)) {
     draft.game.piece = newPiece;
   }
 };

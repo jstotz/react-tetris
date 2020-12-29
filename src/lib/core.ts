@@ -77,7 +77,7 @@ function newPieceDropPreview(piece: Piece, board: BoardData): Piece {
   return movePieceToBottom(previewPiece, board);
 }
 
-function cellOccupied(cell: Cell): boolean {
+function cellIsOccupied(cell: Cell): boolean {
   return cell.type === "piece";
 }
 
@@ -85,7 +85,7 @@ function cellOccupied(cell: Cell): boolean {
 export function removeCompletedRows(
   board: BoardData
 ): { board: BoardData; completedRowCount: number } {
-  let newGrid = board.grid.filter((row) => !row.every(cellOccupied));
+  let newGrid = board.grid.filter((row) => !row.every(cellIsOccupied));
   let completedRowCount = board.height - newGrid.length;
   if (completedRowCount > 0) {
     const newEmptyRows = times(board.height - newGrid.length, () =>
@@ -96,7 +96,7 @@ export function removeCompletedRows(
   return { board: { ...board, grid: newGrid }, completedRowCount };
 }
 
-function boardPositionWithinBounds(
+function boardPositionIsWithinBounds(
   x: number,
   y: number,
   board: BoardData
@@ -104,13 +104,14 @@ function boardPositionWithinBounds(
   return x >= 0 && x < board.width && y >= 0 && y < board.height;
 }
 
-function boardPositionValid(x: number, y: number, board: BoardData): boolean {
+function boardPositionIsValid(x: number, y: number, board: BoardData): boolean {
   return (
-    boardPositionWithinBounds(x, y, board) && !cellOccupied(board.grid[y][x])
+    boardPositionIsWithinBounds(x, y, board) &&
+    !cellIsOccupied(board.grid[y][x])
   );
 }
 
-export function piecePositionValid(piece: Piece, board: BoardData): boolean {
+export function piecePositionIsValid(piece: Piece, board: BoardData): boolean {
   for (let yOffset = 0; yOffset < piece.grid.length; yOffset++) {
     for (let xOffset = 0; xOffset < piece.grid[yOffset].length; xOffset++) {
       const [x, y] = [xOffset + piece.x, yOffset + piece.y];
@@ -119,7 +120,7 @@ export function piecePositionValid(piece: Piece, board: BoardData): boolean {
       if (!blockIsVisible) {
         continue;
       }
-      if (!boardPositionValid(x, y, board)) {
+      if (!boardPositionIsValid(x, y, board)) {
         return false;
       }
     }
@@ -139,7 +140,7 @@ export function renderPiece(piece: Piece, board: BoardData): BoardData {
         };
         const x = piece.x + xOffset;
         const y = piece.y + yOffset;
-        if (boardPositionValid(x, y, board)) {
+        if (boardPositionIsValid(x, y, board)) {
           newBoard.grid[y][x] = cell;
         }
       });
@@ -162,16 +163,20 @@ export function renderPieceWithDropPreview(
 export const movePieceToBottom = (piece: Piece, board: BoardData) => {
   while (true) {
     let newPiece = { ...piece, y: piece.y + 1 };
-    if (piecePositionValid(newPiece, board)) {
+    if (piecePositionIsValid(newPiece, board)) {
       piece = newPiece;
     } else {
       return piece;
     }
   }
 };
+
 export const movePieceLeft = (piece: Piece) => ({ ...piece, x: piece.x - 1 });
+
 export const movePieceRight = (piece: Piece) => ({ ...piece, x: piece.x + 1 });
+
 export const movePieceDown = (piece: Piece) => ({ ...piece, y: piece.y + 1 });
+
 export const rotatePiece = (piece: Piece) => ({
   ...piece,
   grid: rotateGrid(piece.grid),
