@@ -1,8 +1,7 @@
-import randomColor from "randomcolor";
 import { PieceShape } from "./lib/core";
 
 export type Theme = {
-  emptyCellColor: string;
+  emptyColor: string;
   previewColor: string;
   pieceColors: {
     [key in PieceShape]: string;
@@ -11,29 +10,29 @@ export type Theme = {
 
 const THEMES = {
   light: {
-    emptyCellColor: "#eeeeee",
-    previewColor: "#cccccc",
+    emptyColor: "rgb(234, 234, 234)",
+    previewColor: "rgb(174, 174, 174)",
     pieceColors: {
-      J: randomColor({ luminosity: "bright" }),
-      T: randomColor({ luminosity: "bright" }),
-      I: randomColor({ luminosity: "bright" }),
-      L: randomColor({ luminosity: "bright" }),
-      S: randomColor({ luminosity: "bright" }),
-      Z: randomColor({ luminosity: "bright" }),
-      O: randomColor({ luminosity: "bright" }),
+      J: "rgb(238, 123, 48)",
+      T: "rgb(48, 102, 190)",
+      L: "rgb(107, 170, 117)",
+      I: "rgb(181, 68, 110)",
+      S: "rgb(255, 236, 81)",
+      Z: "rgb(191, 188, 203)",
+      O: "rgb(120, 192, 224)",
     },
   } as Theme,
   dark: {
-    emptyCellColor: "#333333",
-    previewColor: "#555555",
+    emptyColor: "rgb(51, 51, 51)",
+    previewColor: "rgb(85, 85, 85)",
     pieceColors: {
-      J: randomColor({ luminosity: "dark" }),
-      T: randomColor({ luminosity: "dark" }),
-      I: randomColor({ luminosity: "dark" }),
-      L: randomColor({ luminosity: "dark" }),
-      S: randomColor({ luminosity: "dark" }),
-      Z: randomColor({ luminosity: "dark" }),
-      O: randomColor({ luminosity: "dark" }),
+      J: "rgb(239, 197, 170)",
+      T: "rgb(158, 186, 232)",
+      L: "rgb(182, 211, 187)",
+      I: "rgb(216, 159, 180)",
+      S: "rgb(244, 236, 179)",
+      Z: "rgb(213, 208, 231)",
+      O: "rgb(183, 231, 252)",
     },
   } as Theme,
 };

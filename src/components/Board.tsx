@@ -1,41 +1,49 @@
-import React, { useContext } from "react";
+import { mapValues } from "lodash";
+import React, { useContext, useMemo } from "react";
+import { stylesheet } from "typestyle";
 import { GameContext } from "../GameContext";
-import { BoardData, Cell } from "../lib/core";
-import { Theme } from "../themes";
-import styles from "./Board.module.css";
-
-function cellColor(cell: Cell, theme: Theme): string {
-  switch (cell.type) {
-    case "empty":
-      return theme.emptyCellColor;
-    case "preview":
-      return theme.previewColor;
-    case "piece":
-      return theme.pieceColors[cell.shape];
-  }
-}
+import { BoardData } from "../lib/core";
 
 const Board = ({ board }: { board: BoardData }) => {
   const [{ theme }] = useContext(GameContext);
   const { grid } = board;
 
+  const sheet = useMemo(
+    () =>
+      stylesheet({
+        board: {
+          display: "grid",
+          gap: "2px 2px",
+          gridAutoRows: "1fr",
+          height: "100%",
+          width: "100%",
+          gridTemplateColumns: `repeat(${board.width}, 1fr)`,
+          gridTemplateRows: `repeat(${board.height}, 1fr)`,
+        },
+        empty: { backgroundColor: theme.emptyColor },
+        preview: { backgroundColor: theme.previewColor },
+        ...mapValues(theme.pieceColors, (color) => ({
+          backgroundColor: color,
+        })),
+      }),
+    [
+      board.width,
+      board.height,
+      theme.emptyColor,
+      theme.previewColor,
+      theme.pieceColors,
+    ]
+  );
+
   return (
-    <div
-      className={styles.board}
-      style={{
-        height: "100%",
-        width: "100%",
-        gridTemplateColumns: `repeat(${board.width}, 1fr)`,
-        gridTemplateRows: `repeat(${board.height}, 1fr)`,
-      }}
-    >
+    <div className={sheet.board}>
       {grid.flatMap((row, y) =>
         row.flatMap((cell, x) => (
           <div
             key={`${x},${y}`}
-            style={{
-              backgroundColor: cellColor(cell, theme),
-            }}
+            className={
+              cell.type === "piece" ? sheet[cell.shape] : sheet[cell.type]
+            }
           ></div>
         ))
       )}
