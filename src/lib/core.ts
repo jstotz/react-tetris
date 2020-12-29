@@ -41,27 +41,25 @@ export const rotateGrid = (grid: Grid): Grid => {
   );
 };
 
-function emptyRow(width: number): Cell[] {
+function newEmptyRow(width: number): Cell[] {
   return times(width, () => ({ type: "empty" }));
 }
 
-function makeEmptyGrid(width: number, height: number): Grid {
-  return times(height, () => emptyRow(width));
+function newEmptyGrid(width: number, height: number): Grid {
+  return times(height, () => newEmptyRow(width));
 }
 
-export function makeEmptyBoard(width: number, height: number): BoardData {
+export function newEmptyBoard(width: number, height: number): BoardData {
   return {
     width: width,
     height: height,
-    grid: makeEmptyGrid(width, height),
+    grid: newEmptyGrid(width, height),
   };
 }
 
-function makeRandomPiece(values: Partial<Piece> = {}): Piece {
-  const basePiece = PIECES[random(0, PIECES.length - 1)];
+function newRandomPiece(): Piece {
   return {
-    ...basePiece,
-    ...values,
+    ...PIECES[random(0, PIECES.length - 1)],
   };
 }
 
@@ -70,11 +68,11 @@ function centerPiece(piece: Piece, boardWidth: number): Piece {
   return { ...piece, x: x };
 }
 
-export function makeRandomPieceCentered(boardWidth: number): Piece {
-  return centerPiece(makeRandomPiece(), boardWidth);
+export function newRandomPieceCentered(boardWidth: number): Piece {
+  return centerPiece(newRandomPiece(), boardWidth);
 }
 
-function makePieceDropPreview(piece: Piece, board: BoardData): Piece {
+function newPieceDropPreview(piece: Piece, board: BoardData): Piece {
   const previewPiece = { ...piece, color: "#ddd", preview: true };
   return movePieceToBottom(previewPiece, board);
 }
@@ -91,7 +89,7 @@ export function removeCompletedRows(
   let completedRowCount = board.height - newGrid.length;
   if (completedRowCount > 0) {
     const newEmptyRows = times(board.height - newGrid.length, () =>
-      emptyRow(board.width)
+      newEmptyRow(board.width)
     );
     newGrid = newEmptyRows.concat(newGrid);
   }
@@ -156,7 +154,7 @@ export function renderPieceWithDropPreview(
   board: BoardData
 ): BoardData {
   return renderPiece(
-    makePieceDropPreview(piece, board),
+    newPieceDropPreview(piece, board),
     renderPiece(piece, board)
   );
 }

@@ -10,12 +10,12 @@ import useSound from "use-sound";
 import {
   BoardData,
   calculateScore,
-  makeEmptyBoard,
-  makeRandomPieceCentered,
   movePieceDown,
   movePieceLeft,
   movePieceRight,
   movePieceToBottom,
+  newEmptyBoard,
+  newRandomPieceCentered,
   Piece,
   piecePositionValid,
   removeCompletedRows,
@@ -98,7 +98,7 @@ function tick(
   draft.game.score += calculateScore(completedRowCount);
 
   draft.game.piece = game.nextPiece;
-  draft.game.nextPiece = makeRandomPieceCentered(board.width);
+  draft.game.nextPiece = newRandomPieceCentered(board.width);
   draft.game.baseBoard = board;
 
   if (!piecePositionValid(game.nextPiece, board)) {
@@ -126,11 +126,11 @@ const movePieceIfValid = (
 
 function newGameState(config: Config): GameState {
   return {
-    piece: makeRandomPieceCentered(config.boardWidth),
-    nextPiece: makeRandomPieceCentered(config.boardWidth),
+    piece: newRandomPieceCentered(config.boardWidth),
+    nextPiece: newRandomPieceCentered(config.boardWidth),
     gameOver: false,
     paused: false,
-    baseBoard: makeEmptyBoard(config.boardWidth, config.boardHeight),
+    baseBoard: newEmptyBoard(config.boardWidth, config.boardHeight),
     score: 0,
   };
 }
