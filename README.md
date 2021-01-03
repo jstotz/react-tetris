@@ -5,4 +5,5 @@ A mostly working experimental implementation of Tetris using
 
 ## TODO
 
-* Next Piece Preview
+* Next piece preview
+* Light/dark mode default based on OS setting
