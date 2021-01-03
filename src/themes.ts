@@ -1,42 +1,53 @@
+import colors from "open-color";
 import { PieceShape } from "./lib/core";
 
 export type Theme = {
+  textColor: string;
   emptyColor: string;
   previewColor: string;
+  backgroundColor: string;
   pieceColors: {
     [key in PieceShape]: string;
   };
 };
 
-const THEMES = {
-  light: {
-    emptyColor: "rgb(234, 234, 234)",
-    previewColor: "rgb(174, 174, 174)",
-    pieceColors: {
-      J: "rgb(238, 123, 48)",
-      T: "rgb(48, 102, 190)",
-      L: "rgb(107, 170, 117)",
-      I: "rgb(181, 68, 110)",
-      S: "rgb(255, 236, 81)",
-      Z: "rgb(191, 188, 203)",
-      O: "rgb(120, 192, 224)",
-    },
-  } as Theme,
-  dark: {
-    emptyColor: "rgb(51, 51, 51)",
-    previewColor: "rgb(85, 85, 85)",
-    pieceColors: {
-      J: "rgb(239, 197, 170)",
-      T: "rgb(158, 186, 232)",
-      L: "rgb(182, 211, 187)",
-      I: "rgb(216, 159, 180)",
-      S: "rgb(244, 236, 179)",
-      Z: "rgb(213, 208, 231)",
-      O: "rgb(183, 231, 252)",
-    },
-  } as Theme,
-};
+export type ThemeId = "light" | "dark";
 
-export type ThemeId = keyof typeof THEMES;
+// Open Color variant index for piece colors
+const lightIndex = 7;
+const darkIndex = 1;
+
+const THEMES: Record<ThemeId, Theme> = {
+  light: {
+    textColor: colors.gray[9],
+    emptyColor: colors.gray[1],
+    previewColor: colors.gray[3],
+    backgroundColor: colors.white,
+    pieceColors: {
+      J: colors.pink[lightIndex],
+      T: colors.grape[lightIndex],
+      L: colors.violet[lightIndex],
+      I: colors.blue[lightIndex],
+      S: colors.orange[lightIndex],
+      Z: colors.lime[lightIndex],
+      O: colors.red[lightIndex],
+    },
+  },
+  dark: {
+    textColor: colors.gray[0],
+    emptyColor: colors.gray[8],
+    previewColor: colors.gray[7],
+    backgroundColor: colors.gray[9],
+    pieceColors: {
+      J: colors.pink[darkIndex],
+      T: colors.grape[darkIndex],
+      L: colors.violet[darkIndex],
+      I: colors.blue[darkIndex],
+      S: colors.orange[darkIndex],
+      Z: colors.lime[darkIndex],
+      O: colors.yellow[darkIndex],
+    },
+  },
+};
 
 export default THEMES;
