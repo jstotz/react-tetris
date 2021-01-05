@@ -57,19 +57,27 @@ export function newEmptyBoard(width: number, height: number): BoardData {
   };
 }
 
-function newRandomPiece(): Piece {
+export function newRandomPiece(): Piece {
   return {
     ...PIECES[random(0, PIECES.length - 1)],
   };
 }
 
-function centerPiece(piece: Piece, boardWidth: number): Piece {
-  const x = Math.floor((boardWidth - piece.grid[0].length) / 2);
-  return { ...piece, x: x };
-}
-
-export function newRandomPieceCentered(boardWidth: number): Piece {
-  return centerPiece(newRandomPiece(), boardWidth);
+export function centerPiece(
+  piece: Piece,
+  board: BoardData,
+  {
+    horizontally = false,
+    vertically = false,
+  }: { horizontally?: boolean; vertically?: boolean }
+): Piece {
+  const x = horizontally
+    ? Math.floor((board.width - piece.grid[0].length) / 2)
+    : piece.x;
+  const y = vertically
+    ? Math.floor((board.height - piece.grid.length) / 2)
+    : piece.x;
+  return { ...piece, x: x, y: y };
 }
 
 function newPieceDropPreview(piece: Piece, board: BoardData): Piece {

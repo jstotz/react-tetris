@@ -10,12 +10,13 @@ import useSound from "use-sound";
 import {
   BoardData,
   calculateScore,
+  centerPiece,
   movePieceDown,
   movePieceLeft,
   movePieceRight,
   movePieceToBottom,
   newEmptyBoard,
-  newRandomPieceCentered,
+  newRandomPiece,
   Piece,
   piecePositionIsValid,
   removeCompletedRows,
@@ -56,12 +57,17 @@ interface State {
 interface UseGameReturnedData extends State, GameState {
   theme: Theme;
   board: BoardData;
+  nextPieceBoard: BoardData;
 }
 
 export type UseGameReturnedValue = [
   UseGameReturnedData,
   React.Dispatch<Action>
 ];
+
+function newPiece(board: BoardData) {
+  return centerPiece(newRandomPiece(), board, { horizontally: true });
+}
 
 // TODO: Refactor to avoid hard coded value
 function tick(
@@ -77,9 +83,9 @@ function tick(
   }
 
   // Attempt to move the current piece down
-  let newPiece = movePieceDown(game.piece);
-  if (piecePositionIsValid(newPiece, game.baseBoard)) {
-    draft.game.piece = newPiece;
+  let piece = movePieceDown(game.piece);
+  if (piecePositionIsValid(piece, game.baseBoard)) {
+    draft.game.piece = piece;
     return;
   }
 
@@ -98,7 +104,7 @@ function tick(
   draft.game.score += calculateScore(completedRowCount);
 
   draft.game.piece = game.nextPiece;
-  draft.game.nextPiece = newRandomPieceCentered(board.width);
+  draft.game.nextPiece = newPiece(board);
   draft.game.baseBoard = board;
 
   if (!piecePositionIsValid(game.nextPiece, board)) {
@@ -125,12 +131,13 @@ const movePieceIfValid = (
 };
 
 function newGameState(config: Config): GameState {
+  const board = newEmptyBoard(config.boardWidth, config.boardHeight);
   return {
-    piece: newRandomPieceCentered(config.boardWidth),
-    nextPiece: newRandomPieceCentered(config.boardWidth),
+    piece: newPiece(board),
+    nextPiece: newPiece(board),
     gameOver: false,
     paused: false,
-    baseBoard: newEmptyBoard(config.boardWidth, config.boardHeight),
+    baseBoard: board,
     score: 0,
   };
 }
@@ -144,6 +151,17 @@ function newState(config: Config): State {
   };
 }
 
+function renderNextPieceBoard(nextPiece: Piece) {
+  let board = newEmptyBoard(4, 4);
+  return renderPiece(
+    centerPiece(nextPiece, board, {
+      horizontally: true,
+      vertically: true,
+    }),
+    board
+  );
+}
+
 export function newGameData(
   config: Config = newConfig(),
   state: State = newState(config)
@@ -153,6 +171,7 @@ export function newGameData(
     ...state.game,
     theme: THEMES[state.themeId],
     board: renderPieceWithDropPreview(state.game.piece, state.game.baseBoard),
+    nextPieceBoard: renderNextPieceBoard(state.game.nextPiece),
   };
 }
 
