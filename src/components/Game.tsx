@@ -19,6 +19,13 @@ function Game(): ReactElement {
           color: theme.textColor,
           width: "100%",
           height: "100%",
+          touchAction: "none",
+          $nest: {
+            "@media screen and (hover: none)": {
+              "-webkit-touch-callout": "none",
+              "-webkit-user-select": "none",
+            },
+          },
         },
         topBar: {
           height: "10%",
