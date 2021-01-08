@@ -9,3 +9,4 @@ Tetris implemented with React and TypeScript.
 * Next piece preview
 * Light/dark mode default based on OS setting
 * Mobile support
+* Implement [Super Rotation System](https://tetris.wiki/Super_Rotation_System)
