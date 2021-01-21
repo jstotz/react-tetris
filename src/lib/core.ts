@@ -1,5 +1,6 @@
 import produce from "immer";
-import { random, times } from "lodash";
+import random from "lodash/random";
+import times from "lodash/times";
 import PIECES from "./pieces";
 
 export type PieceShape = "J" | "T" | "L" | "I" | "S" | "Z" | "O";

@@ -1,4 +1,4 @@
-import { mapValues } from "lodash";
+import mapValues from "lodash/mapValues";
 import React, { useContext, useMemo, useRef } from "react";
 import { SwipeCallback, useSwipeable } from "react-swipeable";
 import { stylesheet } from "typestyle";
